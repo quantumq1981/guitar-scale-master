@@ -1,0 +1,2265 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guitar Scale Master - Complete Practice Tool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            'root-note': '#10b981',
+            'scale-note': '#374151',
+            'fretboard-wood': '#6e4e3e',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --root-note: #10b981;
+      --scale-note: #374151;
+      --fret-mark: #6b7280;
+    }
+
+```
+* {
+  box-sizing: border-box;
+}
+
+.fretboard-container {
+  overflow-x: auto;
+  max-width: 100%;
+  background: linear-gradient(to bottom, #7c5e4a 0%, #6e4e3e 100%);
+  border-radius: 0.5rem;
+}
+
+.string { 
+  stroke: #d1d5db; 
+  stroke-width: 1.5; 
+}
+
+.string:nth-child(1) { stroke-width: 1; }
+.string:nth-child(2) { stroke-width: 1.2; }
+.string:nth-child(3) { stroke-width: 1.5; }
+.string:nth-child(4) { stroke-width: 1.8; }
+.string:nth-child(5) { stroke-width: 2; }
+.string:nth-child(6) { stroke-width: 2.2; }
+
+.fret { 
+  stroke: #9ca3af; 
+  stroke-width: 3; 
+}
+
+.nut { 
+  stroke: #1f2937; 
+  stroke-width: 6; 
+}
+
+.note-circle { 
+  fill: var(--scale-note); 
+  transition: all 0.15s ease;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.note-circle:hover {
+  fill: #4f46e5;
+  transform: scale(1.1);
+}
+
+.root-circle { 
+  fill: var(--root-note); 
+  transition: all 0.15s ease;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+
+.root-circle:hover {
+  fill: #059669;
+  transform: scale(1.1);
+}
+
+.note-label { 
+  fill: white; 
+  pointer-events: none;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.fret-dot { 
+  fill: var(--fret-mark); 
+  opacity: 0.5;
+}
+
+.voicing-highlight {
+  fill: #ef4444;
+  opacity: 0.9;
+  stroke: white;
+  stroke-width: 2;
+  pointer-events: none;
+  animation: pulse 0.5s ease-in-out;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.6; }
+}
+
+.scale-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #4f46e5;
+}
+
+.toggle-checkbox:checked + .toggle-label::after {
+  transform: translateX(100%);
+}
+
+.toggle-label {
+  display: block;
+  width: 2.5rem;
+  height: 1.5rem;
+  background-color: #d1d5db;
+  border-radius: 9999px;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.toggle-label::after {
+  content: '';
+  position: absolute;
+  left: 0.125rem;
+  top: 0.125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: white;
+  border-radius: 9999px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.practice-card {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.practice-card:hover {
+  box-shadow: 0 10px 15px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+.quiz-option {
+  padding: 0.75rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  font-weight: 500;
+}
+
+.quiz-option:hover {
+  border-color: #4f46e5;
+  background-color: #f5f3ff;
+}
+
+.quiz-option.correct {
+  background-color: #d1fae5;
+  border-color: #10b981;
+}
+
+.quiz-option.incorrect {
+  background-color: #fee2e2;
+  border-color: #ef4444;
+}
+
+.loading-spinner {
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #4f46e5;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  display: block;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  margin-top: 0.25rem;
+}
+
+code {
+  background-color: #f3f4f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+}
+
+.clickable-voicing {
+  display: inline-block;
+  background-color: #f3f4f6;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  margin: 0.25rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 2px solid transparent;
+}
+
+.clickable-voicing:hover {
+  background-color: #e0e7ff;
+  border-color: #6366f1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tab-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: #4f46e5;
+}
+
+.tab-button.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Jazz Progression Styling */
+#progressionOutput {
+  font-family: 'Courier New', monospace;
+  line-height: 1.8;
+}
+
+#progressionOutput .font-mono {
+  letter-spacing: 0.5px;
+}
+
+.progression-bar {
+  background: linear-gradient(to right, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  border-left: 3px solid #6366f1;
+  padding: 0.5rem 1rem;
+  margin: 0.25rem 0;
+  border-radius: 0.25rem;
+}
+```
+
+  </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 font-sans text-gray-800 p-4 sm:p-6">
+
+  <div class="max-w-6xl mx-auto space-y-6">
+
+```
+<!-- Header -->
+<header class="text-center py-6 bg-white shadow-xl rounded-xl border-b-4 border-indigo-600">
+  <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+    🎸 Guitar Scale Master
+  </h1>
+  <p class="text-sm text-gray-500 mt-2">Complete Practice Tool with 30+ Scales, Interactive Fretboard & Practice Modes</p>
+</header>
+
+<!-- Main Scale Visualizer -->
+<div class="practice-card">
+  <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+    <span class="text-2xl mr-2">🎼</span>
+    Scale Visualizer
+  </h2>
+
+  <!-- Controls -->
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+    
+    <div>
+      <label for="familySelect" class="block text-sm font-medium text-gray-600 mb-1">Scale Family:</label>
+      <select id="familySelect" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+        <option value="all">All Scales</option>
+      </select>
+    </div>
+    
+    <div>
+      <label for="scaleSelect" class="block text-sm font-medium text-gray-600 mb-1">Scale/Mode:</label>
+      <select id="scaleSelect" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+      </select>
+    </div>
+    
+    <div>
+      <label for="rootSelect" class="block text-sm font-medium text-gray-600 mb-1">Root Note:</label>
+      <select id="rootSelect" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+      </select>
+    </div>
+    
+    <div>
+      <label for="notationSelect" class="block text-sm font-medium text-gray-600 mb-1">Notation:</label>
+      <select id="notationSelect" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+        <option value="sharp">Sharps (C#)</option>
+        <option value="flat">Flats (Db)</option>
+      </select>
+    </div>
+
+    <div class="flex flex-col justify-end">
+      <div class="flex items-center space-x-2">
+        <input type="checkbox" id="degreeToggle" class="hidden toggle-checkbox">
+        <label for="degreeToggle" class="toggle-label"></label>
+        <span class="text-xs font-medium text-gray-700">Show Degrees</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex gap-3 mb-4">
+    <button id="showScaleBtn" class="flex-1 py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold rounded-lg shadow-md hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-200">
+      🎯 Show Scale
+    </button>
+    <button id="playScaleBtn" class="py-2.5 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold rounded-lg shadow-md hover:from-emerald-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 transition duration-200">
+      ▶️ Play
+    </button>
+    <button id="randomScaleBtn" class="py-2.5 px-6 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold rounded-lg shadow-md hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 transition duration-200">
+      🎲 Random
+    </button>
+  </div>
+
+  <!-- Scale Info Display -->
+  <div id="scaleNotes" class="mb-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 text-gray-800 rounded-lg text-center text-sm sm:text-base border border-indigo-200">
+    Select a scale family, scale, and root note above.
+  </div>
+  
+  <!-- Scale Analysis -->
+  <div id="scaleAnalysis" class="mb-4"></div>
+
+  <!-- Fretboard -->
+  <div id="fretboard" class="fretboard-container shadow-lg mb-4"></div>
+
+  <!-- Clear Highlights Button -->
+  <button id="clearHighlightsBtn" class="py-2 px-4 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition duration-200">
+    Clear Highlights
+  </button>
+</div>
+
+<!-- Tabs Section -->
+<div class="practice-card">
+  <div class="border-b border-gray-200 mb-4">
+    <nav class="flex space-x-2">
+      <button class="tab-button active" data-tab="chords">Compatible Chords</button>
+      <button class="tab-button" data-tab="progressions">Jazz Progressions</button>
+      <button class="tab-button" data-tab="practice">Practice Modes</button>
+      <button class="tab-button" data-tab="quiz">Interval Quiz</button>
+      <button class="tab-button" data-tab="stats">Progress Stats</button>
+    </nav>
+  </div>
+
+  <!-- Tab: Compatible Chords -->
+  <div id="tab-chords" class="tab-content active">
+    <h3 class="text-xl font-bold text-gray-800 mb-3">Compatible Chords & Voicings</h3>
+    <p class="text-sm text-gray-600 mb-3">Click any voicing to highlight and hear it on the fretboard.</p>
+    <div id="chordOutput"></div>
+    <p id="chordError" class="mt-4 text-red-600 font-semibold hidden"></p>
+  </div>
+
+  <!-- Tab: Jazz Progressions -->
+  <div id="tab-progressions" class="tab-content">
+    <h3 class="text-xl font-bold text-gray-800 mb-4">🎺 Jazz & Blues Progression Generator</h3>
+    <p class="text-sm text-gray-600 mb-4">Generate authentic jazz and blues progressions with substitutions and reharmonizations.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      
+      <!-- Basic Blues -->
+      <div class="p-4 border-2 border-blue-200 rounded-lg bg-blue-50 hover:border-blue-400 transition">
+        <h4 class="font-bold text-gray-800 mb-2 flex items-center">
+          🎸 12-Bar Blues
+        </h4>
+        <p class="text-sm text-gray-600 mb-3">Classic 12-bar blues in selected key with authentic voicings.</p>
+        <button id="generate12BarBtn" class="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
+          Generate Blues
+        </button>
+      </div>
+
+      <!-- Parker Blues -->
+      <div class="p-4 border-2 border-purple-200 rounded-lg bg-purple-50 hover:border-purple-400 transition">
+        <h4 class="font-bold text-gray-800 mb-2 flex items-center">
+          🎷 Parker Blues (Bird Blues)
+        </h4>
+        <p class="text-sm text-gray-600 mb-3">Charlie Parker's bebop blues with ii-V substitutions.</p>
+        <button id="generateParkerBtn" class="w-full py-2 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium">
+          Generate Parker Blues
+        </button>
+      </div>
+
+      <!-- Jazz ii-V-I -->
+      <div class="p-4 border-2 border-emerald-200 rounded-lg bg-emerald-50 hover:border-emerald-400 transition">
+        <h4 class="font-bold text-gray-800 mb-2 flex items-center">
+          🎹 ii-V-I Progressions
+        </h4>
+        <p class="text-sm text-gray-600 mb-3">Essential jazz cadence with tritone subs and extensions.</p>
+        <button id="generateIIVIBtn" class="w-full py-2 px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium">
+          Generate ii-V-I
+        </button>
+      </div>
+
+      <!-- Rhythm Changes -->
+      <div class="p-4 border-2 border-amber-200 rounded-lg bg-amber-50 hover:border-amber-400 transition">
+        <h4 class="font-bold text-gray-800 mb-2 flex items-center">
+          🎺 Rhythm Changes (Gershwin)
+        </h4>
+        <p class="text-sm text-gray-600 mb-3">"I Got Rhythm" changes - bebop standard form.</p>
+        <button id="generateRhythmBtn" class="w-full py-2 px-4 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition font-medium">
+          Generate Rhythm Changes
+        </button>
+      </div>
+
+      <!-- Modal Jazz -->
+      <div class="p-4 border-2 border-indigo-200 rounded-lg bg-indigo-50 hover:border-indigo-400 transition">
+        <h4 class="font-bold text-gray-800 mb-2 flex items-center">
+          🌊 Modal Jazz Vamp
+        </h4>
+        <p class="text-sm text-gray-600 mb-3">Miles Davis style modal progression.</p>
+        <button id="generateModalBtn" class="w-full py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium">
+          Generate Modal Vamp
+        </button>
+      </div>
+
+      <!-- Jazz Ballad -->
+      <div class="p-4 border-2 border-rose-200 rounded-lg bg-rose-50 hover:border-rose-400 transition">
+        <h4 class="font-bold text-gray-800 mb-2 flex items-center">
+          💫 Jazz Ballad
+        </h4>
+        <p class="text-sm text-gray-600 mb-3">Sophisticated ballad changes with rich harmony.</p>
+        <button id="generateBalladBtn" class="w-full py-2 px-4 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition font-medium">
+          Generate Ballad
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Progression Display -->
+    <div id="progressionOutput" class="p-5 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border-2 border-gray-700 min-h-[200px] shadow-xl">
+      <p class="text-gray-300 text-center italic">Select a progression type above to generate chord changes.</p>
+    </div>
+
+    <!-- Options -->
+    <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+      <h4 class="font-semibold text-gray-800 mb-3">Progression Options</h4>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" id="showSubstitutions" class="rounded text-indigo-600 focus:ring-2 focus:ring-indigo-500">
+          <span class="text-sm text-gray-700">Show Substitutions</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" id="showExtensions" checked class="rounded text-indigo-600 focus:ring-2 focus:ring-indigo-500">
+          <span class="text-sm text-gray-700">Use Extensions (9ths, 13ths)</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" id="showAnalysis" class="rounded text-indigo-600 focus:ring-2 focus:ring-indigo-500">
+          <span class="text-sm text-gray-700">Show Analysis</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Practice Modes -->
+  <div id="tab-practice" class="tab-content">
+    <h3 class="text-xl font-bold text-gray-800 mb-3">Practice Exercise Generator</h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div class="p-4 border-2 border-gray-200 rounded-lg hover:border-indigo-300 transition">
+        <h4 class="font-semibold text-gray-800 mb-2">🎵 Melodic Pattern</h4>
+        <p class="text-sm text-gray-600 mb-3">Generate ascending/descending patterns for finger dexterity.</p>
+        <button id="generateMelodicBtn" class="w-full py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+          Generate Pattern
+        </button>
+      </div>
+
+      <div class="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-300 transition">
+        <h4 class="font-semibold text-gray-800 mb-2">🎸 Interval Sequence</h4>
+        <p class="text-sm text-gray-600 mb-3">Practice specific intervals within the scale.</p>
+        <button id="generateIntervalBtn" class="w-full py-2 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+          Generate Intervals
+        </button>
+      </div>
+
+      <div class="p-4 border-2 border-gray-200 rounded-lg hover:border-teal-300 transition">
+        <h4 class="font-semibold text-gray-800 mb-2">🎹 Chord Progression</h4>
+        <p class="text-sm text-gray-600 mb-3">Get a progression using scale harmonization.</p>
+        <button id="generateProgressionBtn" class="w-full py-2 px-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition">
+          Generate Progression
+        </button>
+      </div>
+
+      <div class="p-4 border-2 border-gray-200 rounded-lg hover:border-emerald-300 transition">
+        <h4 class="font-semibold text-gray-800 mb-2">🎼 Sequence Challenge</h4>
+        <p class="text-sm text-gray-600 mb-3">Ascending 3rds, 4ths, triads, etc.</p>
+        <button id="generateSequenceBtn" class="w-full py-2 px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
+          Generate Sequence
+        </button>
+      </div>
+    </div>
+
+    <div id="practiceOutput" class="p-4 bg-gray-50 rounded-lg border border-gray-200 min-h-[100px]">
+      <p class="text-gray-500 text-center italic">Select a practice mode above to generate exercises.</p>
+    </div>
+  </div>
+
+  <!-- Tab: Interval Quiz -->
+  <div id="tab-quiz" class="tab-content">
+    <h3 class="text-xl font-bold text-gray-800 mb-3">Interval Recognition Quiz</h3>
+    <p class="text-sm text-gray-600 mb-4">Test your knowledge of scale degrees and intervals!</p>
+
+    <div id="quizContainer">
+      <div id="quizQuestion" class="text-lg font-semibold text-gray-800 mb-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+        Click "Start Quiz" to begin!
+      </div>
+
+      <div id="quizOptions" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <!-- Options will be populated dynamically -->
+      </div>
+
+      <div class="flex gap-3">
+        <button id="startQuizBtn" class="flex-1 py-2.5 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition">
+          Start Quiz
+        </button>
+        <button id="nextQuestionBtn" class="flex-1 py-2.5 px-4 bg-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-400 transition hidden">
+          Next Question
+        </button>
+      </div>
+
+      <div id="quizFeedback" class="mt-4 p-4 rounded-lg hidden"></div>
+    </div>
+  </div>
+
+  <!-- Tab: Progress Stats -->
+  <div id="tab-stats" class="tab-content">
+    <h3 class="text-xl font-bold text-gray-800 mb-4">Your Progress Statistics</h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="stat-card">
+        <span id="statScalesLearned" class="stat-value">0</span>
+        <span class="stat-label">Scales Practiced</span>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <span id="statQuizScore" class="stat-value">0%</span>
+        <span class="stat-label">Quiz Accuracy</span>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <span id="statPracticeTime" class="stat-value">0</span>
+        <span class="stat-label">Practice Sessions</span>
+      </div>
+    </div>
+
+    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+      <h4 class="font-semibold text-gray-800 mb-2">Recent Activity</h4>
+      <div id="recentActivity" class="space-y-2">
+        <p class="text-sm text-gray-500 italic">No activity yet. Start practicing!</p>
+      </div>
+    </div>
+
+    <button id="resetStatsBtn" class="mt-4 py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+      Reset All Statistics
+    </button>
+  </div>
+</div>
+```
+
+  </div>
+
+  <script>
+    // ============================================================================
+    // SCALE DATABASE (Embedded)
+    // ============================================================================
+    
+    const scaleDB = {
+      "Ionian": {
+        intervals: [0, 2, 4, 5, 7, 9, 11],
+        degrees: ["1", "2", "3", "4", "5", "6", "7"],
+        compatibleChords: ["Maj7", "Maj9", "6"],
+        family: "Major",
+        usage: "Over I or IV major chords, bright and happy sound"
+      },
+      "Dorian": {
+        intervals: [0, 2, 3, 5, 7, 9, 10],
+        degrees: ["1", "2", "♭3", "4", "5", "6", "♭7"],
+        compatibleChords: ["m7", "m9", "m11"],
+        family: "Minor",
+        usage: "IIm7 or tonic minor with color, jazz/funk flavor"
+      },
+      "Phrygian": {
+        intervals: [0, 1, 3, 5, 7, 8, 10],
+        degrees: ["1", "♭2", "♭3", "4", "5", "♭6", "♭7"],
+        compatibleChords: ["m7", "sus♭9"],
+        family: "Minor",
+        usage: "Dark minor color, Spanish/flamenco sounds"
+      },
+      "Lydian": {
+        intervals: [0, 2, 4, 6, 7, 9, 11],
+        degrees: ["1", "2", "3", "#4", "5", "6", "7"],
+        compatibleChords: ["Maj7", "Maj9", "Maj7#11"],
+        family: "Major",
+        usage: "Bright major, dreamy sound over #11 chords"
+      },
+      "Mixolydian": {
+        intervals: [0, 2, 4, 5, 7, 9, 10],
+        degrees: ["1", "2", "3", "4", "5", "6", "♭7"],
+        compatibleChords: ["7", "9", "13"],
+        family: "Dominant",
+        usage: "Standard dominant scale, rock/blues staple"
+      },
+      "Aeolian": {
+        intervals: [0, 2, 3, 5, 7, 8, 10],
+        degrees: ["1", "2", "♭3", "4", "5", "♭6", "♭7"],
+        compatibleChords: ["m7", "m9"],
+        family: "Minor",
+        usage: "Natural minor scale, somber and melancholic"
+      },
+      "Locrian": {
+        intervals: [0, 1, 3, 5, 6, 8, 10],
+        degrees: ["1", "♭2", "♭3", "4", "♭5", "♭6", "♭7"],
+        compatibleChords: ["m7♭5", "ø"],
+        family: "Diminished",
+        usage: "Half-diminished harmony, unstable/tension"
+      },
+      "Melodic Minor": {
+        intervals: [0, 2, 3, 5, 7, 9, 11],
+        degrees: ["1", "2", "♭3", "4", "5", "6", "7"],
+        compatibleChords: ["mMaj7", "m6", "m9"],
+        family: "Melodic Minor",
+        usage: "Tonic minor with leading tone, jazz sophistication"
+      },
+      "Lydian Dominant": {
+        intervals: [0, 2, 4, 6, 7, 9, 10],
+        degrees: ["1", "2", "3", "#4", "5", "6", "♭7"],
+        compatibleChords: ["7♯11"],
+        family: "Melodic Minor",
+        usage: "Dominant with ♯11, modal interchange color"
+      },
+      "Altered Scale": {
+        intervals: [0, 1, 3, 4, 6, 8, 10],
+        degrees: ["1", "♭2", "♭3", "♭4", "♭5", "♭6", "♭7"],
+        compatibleChords: ["7alt", "7♭9", "7♯9"],
+        family: "Melodic Minor",
+        usage: "Fully altered dominant, maximum tension"
+      },
+      "Harmonic Minor": {
+        intervals: [0, 2, 3, 5, 7, 8, 11],
+        degrees: ["1", "2", "♭3", "4", "5", "♭6", "7"],
+        compatibleChords: ["mMaj7", "m6"],
+        family: "Harmonic Minor",
+        usage: "Minor key with strong V7 resolution, exotic"
+      },
+      "Phrygian Dominant": {
+        intervals: [0, 1, 4, 5, 7, 8, 10],
+        degrees: ["1", "♭2", "3", "4", "5", "♭6", "♭7"],
+        compatibleChords: ["7♭9"],
+        family: "Harmonic Minor",
+        usage: "V7 in minor, Spanish/Middle Eastern flavor"
+      },
+      "Whole Tone": {
+        intervals: [0, 2, 4, 6, 8, 10],
+        degrees: ["1", "2", "3", "#4", "#5", "♭7"],
+        compatibleChords: ["7♯5", "7♭5"],
+        family: "Symmetrical",
+        usage: "Augmented dominants, dreamy/floating quality"
+      },
+      "Diminished (WH)": {
+        intervals: [0, 2, 3, 5, 6, 8, 9, 11],
+        degrees: ["1", "2", "♭3", "4", "♯4", "♭6", "6", "7"],
+        compatibleChords: ["dim7"],
+        family: "Symmetrical",
+        usage: "Fully diminished chords, symmetrical movement"
+      },
+      "Diminished (HW)": {
+        intervals: [0, 1, 3, 4, 6, 7, 9, 10],
+        degrees: ["1", "♭9", "#9", "3", "♯11", "5", "13", "♭7"],
+        compatibleChords: ["7", "7♭9", "7♯9"],
+        family: "Symmetrical",
+        usage: "Dominant with b9/#9 tension"
+      },
+      "Major Bebop": {
+        intervals: [0, 2, 4, 5, 7, 8, 9, 11],
+        degrees: ["1", "2", "3", "4", "5", "♯5", "6", "7"],
+        compatibleChords: ["Maj7", "Maj9"],
+        family: "Bebop",
+        usage: "Major scale with chromatic passing tone between 5-6"
+      },
+      "Dominant Bebop": {
+        intervals: [0, 2, 4, 5, 7, 9, 10, 11],
+        degrees: ["1", "2", "3", "4", "5", "6", "♭7", "7"],
+        compatibleChords: ["7", "9", "13"],
+        family: "Bebop",
+        usage: "Dominant with chromatic approach to root, Parker/Gillespie favorite. Use over V7 chords for smooth downbeat landing"
+      },
+      "Minor Bebop": {
+        intervals: [0, 2, 3, 5, 7, 8, 9, 10],
+        degrees: ["1", "2", "♭3", "4", "5", "♭6", "6", "♭7"],
+        compatibleChords: ["m7"],
+        family: "Bebop",
+        usage: "Natural minor with chromatic passing tone between ♭6-6. Essential for ii-7 chords in jazz"
+      },
+      "Harmonic Bebop": {
+        intervals: [0, 2, 3, 5, 7, 8, 10, 11],
+        degrees: ["1", "2", "♭3", "4", "5", "♭6", "♭7", "7"],
+        compatibleChords: ["mMaj7", "m7"],
+        family: "Bebop",
+        usage: "Harmonic minor with added ♭7, common in bebop ii-V-i. Combines natural and harmonic minor color"
+      },
+      "Melodic Bebop": {
+        intervals: [0, 2, 3, 5, 7, 8, 9, 11],
+        degrees: ["1", "2", "♭3", "4", "5", "♭6", "6", "7"],
+        compatibleChords: ["mMaj7", "m6"],
+        family: "Bebop",
+        usage: "Melodic minor with added ♭6, sophisticated minor color. Excellent over i-Maj7 chords"
+      },
+      "Dorian Bebop": {
+        intervals: [0, 2, 3, 4, 5, 7, 9, 10],
+        degrees: ["1", "2", "♭3", "3", "4", "5", "6", "♭7"],
+        compatibleChords: ["m7", "m9"],
+        family: "Bebop",
+        usage: "Dorian with added major 3rd, classic bebop minor sound"
+      },
+      "Double Harmonic": {
+        intervals: [0, 1, 4, 5, 7, 8, 11],
+        degrees: ["1", "♭2", "3", "4", "5", "♭6", "7"],
+        compatibleChords: ["Maj7"],
+        family: "Exotic",
+        usage: "Middle Eastern/Byzantine sound"
+      },
+      "Hungarian Minor": {
+        intervals: [0, 2, 3, 6, 7, 8, 11],
+        degrees: ["1", "2", "♭3", "♯4", "5", "♭6", "7"],
+        compatibleChords: ["mMaj7"],
+        family: "Exotic",
+        usage: "Dark, dramatic minor with augmented 4th"
+      },
+      "Neapolitan Minor": {
+        intervals: [0, 1, 3, 5, 7, 8, 11],
+        degrees: ["1", "♭2", "♭3", "4", "5", "♭6", "7"],
+        compatibleChords: ["mMaj7"],
+        family: "Exotic",
+        usage: "Neapolitan flavor with minor color"
+      },
+      "Major Pentatonic": {
+        intervals: [0, 2, 4, 7, 9],
+        degrees: ["1", "2", "3", "5", "6"],
+        compatibleChords: ["Maj7", "Maj9"],
+        family: "Pentatonic",
+        usage: "Simple consonant major, rock/folk/country"
+      },
+      "Minor Pentatonic": {
+        intervals: [0, 3, 5, 7, 10],
+        degrees: ["1", "♭3", "4", "5", "♭7"],
+        compatibleChords: ["m7"],
+        family: "Pentatonic",
+        usage: "Blues/rock fundamental, universal minor sound"
+      },
+      "Blues Scale": {
+        intervals: [0, 3, 5, 6, 7, 10],
+        degrees: ["1", "♭3", "4", "♭5", "5", "♭7"],
+        compatibleChords: ["7", "m7"],
+        family: "Pentatonic",
+        usage: "Blues with chromatic ♭5 'blue note'"
+      },
+      "Hirajoshi": {
+        intervals: [0, 2, 3, 7, 8],
+        degrees: ["1", "2", "♭3", "5", "♭6"],
+        compatibleChords: ["m7", "sus2"],
+        family: "Exotic",
+        usage: "Japanese pentatonic, contemplative and serene"
+      },
+      "In Sen": {
+        intervals: [0, 1, 5, 7, 10],
+        degrees: ["1", "♭2", "4", "5", "♭7"],
+        compatibleChords: ["sus4", "7sus4"],
+        family: "Exotic",
+        usage: "Japanese scale, mysterious and ancient"
+      },
+      "Iwato": {
+        intervals: [0, 1, 5, 6, 10],
+        degrees: ["1", "♭2", "4", "♭5", "♭7"],
+        compatibleChords: ["7♭5"],
+        family: "Exotic",
+        usage: "Japanese pentatonic, dark and ominous"
+      },
+      "Yo Scale": {
+        intervals: [0, 2, 5, 7, 9],
+        degrees: ["1", "2", "4", "5", "6"],
+        compatibleChords: ["sus2", "sus4"],
+        family: "Exotic",
+        usage: "Japanese pentatonic, bright and hopeful"
+      },
+      "Akebono": {
+        intervals: [0, 2, 3, 7, 9],
+        degrees: ["1", "2", "♭3", "5", "6"],
+        compatibleChords: ["m6"],
+        family: "Exotic",
+        usage: "Japanese scale, dawn-like quality"
+      },
+      "Enigmatic": {
+        intervals: [0, 1, 4, 6, 8, 10, 11],
+        degrees: ["1", "♭2", "3", "♯4", "♯5", "♯6", "7"],
+        compatibleChords: ["Maj7♯5"],
+        family: "Exotic",
+        usage: "Highly altered major, mysterious quality"
+      },
+      "Persian": {
+        intervals: [0, 1, 4, 5, 6, 8, 11],
+        degrees: ["1", "♭2", "3", "4", "♭5", "♭6", "7"],
+        compatibleChords: ["Maj7"],
+        family: "Exotic",
+        usage: "Middle Eastern flavor with augmented seconds"
+      },
+      "Arabian": {
+        intervals: [0, 2, 4, 5, 6, 8, 10],
+        degrees: ["1", "2", "3", "4", "♭5", "♭6", "♭7"],
+        compatibleChords: ["7♭5"],
+        family: "Exotic",
+        usage: "Arabic music, distinctive diminished 5th"
+      },
+      "Gypsy": {
+        intervals: [0, 1, 4, 5, 7, 8, 11],
+        degrees: ["1", "♭2", "3", "4", "5", "♭6", "7"],
+        compatibleChords: ["Maj7"],
+        family: "Exotic",
+        usage: "Romani music, passionate and dramatic"
+      },
+      "Jewish (Ahava Raba)": {
+        intervals: [0, 1, 4, 5, 7, 8, 10],
+        degrees: ["1", "♭2", "3", "4", "5", "♭6", "♭7"],
+        compatibleChords: ["7"],
+        family: "Exotic",
+        usage: "Klezmer music, Eastern European Jewish tradition"
+      },
+      "Spanish 8-Tone": {
+        intervals: [0, 1, 3, 4, 5, 6, 8, 10],
+        degrees: ["1", "♭2", "♭3", "3", "4", "♭5", "♭6", "♭7"],
+        compatibleChords: ["7♭9"],
+        family: "Exotic",
+        usage: "Flamenco-inspired, chromatic richness"
+      }
+    };
+
+    // ============================================================================
+    // VOICING LIBRARY
+    // ============================================================================
+    
+    const voicingLibrary = {
+      "Maj7": ["x 3 2 0 0 0", "x 0 2 1 2 0", "3 2 0 0 0 2"],
+      "Maj9": ["x 3 2 4 3 0", "x 0 2 1 3 0"],
+      "6": ["x 3 2 2 1 0", "0 2 2 1 2 0"],
+      "m7": ["x 0 2 0 1 0", "x 3 1 3 1 3", "3 5 3 3 3 3"],
+      "m9": ["x 3 1 3 3 0", "0 2 0 0 0 2"],
+      "m11": ["x 3 3 3 4 3"],
+      "7": ["x 3 2 3 1 0", "x 0 2 0 2 0", "3 2 0 0 0 1"],
+      "9": ["x 3 2 3 3 3", "0 2 1 0 2 0"],
+      "13": ["x 3 2 3 5 5"],
+      "m7♭5": ["x 2 3 2 3 0", "x x 1 2 2 3"],
+      "ø": ["x 2 3 2 3 0"],
+      "dim7": ["x 2 3 1 3 0", "x x 1 2 1 2"],
+      "7♯11": ["x 2 1 3 0 0"],
+      "7alt": ["x 0 1 2 2 3"],
+      "7♭9": ["x 3 2 3 2 0"],
+      "7♯9": ["x 3 2 3 4 0"],
+      "mMaj7": ["x 3 1 0 0 0", "x 0 2 1 1 0"],
+      "sus♭9": ["x 3 3 3 1 0"],
+      "7♯5": ["x 0 1 2 2 3"],
+      "7♭5": ["x 0 1 2 0 3"],
+      "Maj7#11": ["x 0 2 1 4 0"]
+    };
+
+    // ============================================================================
+    // MUSICAL HELPERS
+    // ============================================================================
+    
+    const noteMap = [
+      { sharp: "C", flat: "C", index: 0 },
+      { sharp: "C#", flat: "Db", index: 1 },
+      { sharp: "D", flat: "D", index: 2 },
+      { sharp: "D#", flat: "Eb", index: 3 },
+      { sharp: "E", flat: "E", index: 4 },
+      { sharp: "F", flat: "F", index: 5 },
+      { sharp: "F#", flat: "Gb", index: 6 },
+      { sharp: "G", flat: "G", index: 7 },
+      { sharp: "G#", flat: "Ab", index: 8 },
+      { sharp: "A", flat: "A", index: 9 },
+      { sharp: "A#", flat: "Bb", index: 10 },
+      { sharp: "B", flat: "B", index: 11 },
+    ];
+    
+    const svgNS = "http://www.w3.org/2000/svg";
+
+    function getNoteName(index, notation) {
+      return noteMap[index % 12][notation];
+    }
+
+    function getNoteIndex(noteStr) {
+      const found = noteMap.find(n => n.sharp === noteStr || n.flat === noteStr);
+      return found ? found.index : -1;
+    }
+
+    const allRootNotes = noteMap.map(n => n.sharp);
+
+    function getAllFamilies() {
+      return [...new Set(Object.values(scaleDB).map(s => s.family))];
+    }
+
+    function getScalesByFamily(family) {
+      if (family === 'all') return Object.keys(scaleDB);
+      return Object.entries(scaleDB)
+        .filter(([name, data]) => data.family === family)
+        .map(([name]) => name);
+    }
+
+    function buildScaleFromDB(root, scaleName) {
+      const notation = document.getElementById("notationSelect").value;
+      const rootIdx = getNoteIndex(root);
+      if (rootIdx === -1 || !scaleDB[scaleName]) {
+        return { scaleNotes: [], degrees: [], compatibleChords: [], family: "", usage: "" };
+      }
+      
+      const scaleData = scaleDB[scaleName];
+      const scaleNotes = scaleData.intervals.map(semitones => 
+        getNoteName((rootIdx + semitones) % 12, notation)
+      );
+      
+      return { 
+        scaleNotes, 
+        degrees: scaleData.degrees,
+        compatibleChords: scaleData.compatibleChords,
+        family: scaleData.family,
+        usage: scaleData.usage,
+        intervals: scaleData.intervals
+      };
+    }
+
+    function calculateWHTrail(intervals) {
+      if (!intervals || intervals.length === 0) return 'N/A';
+      
+      const steps = [];
+      let prevSemitone = 0;
+      
+      for (let i = 1; i < intervals.length; i++) {
+        const diff = intervals[i] - prevSemitone;
+        steps.push(diff);
+        prevSemitone = intervals[i];
+      }
+
+      const lastStep = 12 - prevSemitone;
+      if (lastStep > 0 && intervals.length < 12) steps.push(lastStep);
+      
+      return steps.map(step => {
+        if (step === 1) return 'H';
+        if (step === 2) return 'W';
+        if (step === 3) return 'W+H';
+        return step;
+      }).join(' – ');
+    }
+
+    // ============================================================================
+    // AUDIO SYSTEM (Web Audio API)
+    // ============================================================================
+    
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(e => console.error("AudioContext resume failed:", e));
+      }
+      return audioCtx;
+    }
+    
+    function getFrequency(noteName) {
+      const freqMap = {
+        "C": 130.81, "C#": 138.59, "Db": 138.59,
+        "D": 146.83, "D#": 155.56, "Eb": 155.56,
+        "E": 164.81, "F": 174.61, "F#": 185.00, "Gb": 185.00,
+        "G": 196.00, "G#": 207.65, "Ab": 207.65,
+        "A": 220.00, "A#": 233.08, "Bb": 233.08,
+        "B": 246.94
+      };
+      return freqMap[noteName] || 0;
+    }
+
+    function playNote(noteName, duration = 0.3, delay = 0, octave = 0) {
+      try {
+        const context = initAudioContext();
+        let freq = getFrequency(noteName);
+        if (freq === 0) return;
+        freq = freq * Math.pow(2, octave);
+
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+
+        osc.frequency.setValueAtTime(freq, context.currentTime + delay);
+        osc.type = "sine";
+        
+        gain.gain.setValueAtTime(0, context.currentTime + delay);
+        gain.gain.linearRampToValueAtTime(0.25, context.currentTime + delay + 0.05);
+        gain.gain.linearRampToValueAtTime(0.15, context.currentTime + delay + 0.15);
+        gain.gain.linearRampToValueAtTime(0, context.currentTime + delay + duration);
+
+        osc.connect(gain).connect(context.destination);
+        osc.start(context.currentTime + delay);
+        osc.stop(context.currentTime + delay + duration);
+      } catch (error) {
+        console.error("Error playing note:", error);
+      }
+    }
+    
+    function playScale(scaleNotes) {
+      let delay = 0;
+      scaleNotes.forEach(note => {
+        playNote(note, 0.25, delay, 1);
+        delay += 0.3;
+      });
+      playNote(scaleNotes[0], 0.3, delay, 2);
+    }
+
+    function playChord(noteNames) {
+      initAudioContext();
+      noteNames.forEach((note, index) => {
+        const octave = (index > 3) ? 1 : 0;
+        playNote(note, 0.8, 0, octave);
+      });
+    }
+
+    // ============================================================================
+    // SVG HELPERS
+    // ============================================================================
+    
+    function createSVGElement(tag, attrs = {}) {
+      const el = document.createElementNS(svgNS, tag);
+      for (const [key, val] of Object.entries(attrs)) {
+        el.setAttribute(key, val);
+      }
+      return el;
+    }
+
+    // ============================================================================
+    // FRETBOARD RENDERING
+    // ============================================================================
+    
+    function clearVoicingHighlights() {
+      document.querySelectorAll('.voicing-highlight').forEach(el => el.remove());
+    }
+
+    function highlightVoicing(voicingString) {
+      clearVoicingHighlights();
+
+      const svg = document.getElementById("fretboard").querySelector('svg');
+      if (!svg || !voicingString) return;
+
+      const frets = voicingString.trim().split(/\s+/);
+      if (frets.length !== 6) {
+        console.error("Invalid voicing string:", voicingString);
+        return;
+      }
+
+      const strings = ["E","B","G","D","A","E"];
+      const stringRoots = ["E", "A", "D", "G", "B", "E"];
+      const numFrets = 15;
+      const width = 1000;
+      const height = 180;
+      const margin = { left: 40, top: 20, right: 20, bottom: 20 };
+      const drawingWidth = width - margin.left - margin.right;
+      const fretSpacing = drawingWidth / (numFrets + 0.5);
+      const stringSpacing = (height - margin.top - margin.bottom) / (strings.length - 1);
+
+      const notesToPlay = [];
+
+      for (let i = 0; i < frets.length; i++) {
+        const fretChar = frets[i];
+        if (fretChar === 'x' || fretChar === 'X') continue;
+        
+        const f = parseInt(fretChar, 10);
+        if (isNaN(f)) continue;
+
+        const rootIdx = getNoteIndex(stringRoots[i]);
+        const noteIdx = (rootIdx + f) % 12;
+        notesToPlay.push(getNoteName(noteIdx, 'sharp'));
+
+        let cx = f === 0 
+          ? margin.left - fretSpacing / 2 
+          : margin.left + f * fretSpacing - fretSpacing / 2;
+            
+        const stringYIndex = (strings.length - 1) - i;
+        const cy = margin.top + stringYIndex * stringSpacing;
+        const r = 11;
+        
+        const highlightCircle = createSVGElement("circle", {
+          cx: cx, cy: cy, r: r,
+          class: "voicing-highlight",
+        });
+        svg.appendChild(highlightCircle);
+      }
+      
+      if (notesToPlay.length > 0) {
+        playChord(notesToPlay);
+      }
+    }
+
+    function drawFretboard(scaleNotes, root, degrees, scaleName) {
+      clearVoicingHighlights();
+      
+      const strings = ["E","B","G","D","A","E"];
+      const notation = document.getElementById("notationSelect").value;
+      const numFrets = 15;
+      const width = 1000;
+      const height = 180;
+      const margin = { left: 40, top: 20, right: 20, bottom: 20 };
+      const showDegrees = document.getElementById("degreeToggle").checked;
+
+      const fretboardDiv = document.getElementById("fretboard");
+      fretboardDiv.innerHTML = "";
+
+      const svg = createSVGElement("svg", {
+        viewBox: `0 0 ${width} ${height}`,
+        preserveAspectRatio: "xMinYMin meet",
+        style: "width: 100%; min-width: 900px; height: auto;",
+        role: "img",
+        'aria-label': `${root} ${scaleName} scale on guitar fretboard`
+      });
+      fretboardDiv.appendChild(svg);
+
+      const drawingWidth = width - margin.left - margin.right;
+      const fretSpacing = drawingWidth / (numFrets + 0.5);
+      const stringSpacing = (height - margin.top - margin.bottom) / (strings.length - 1);
+      const dotFrets = [3, 5, 7, 9, 12, 15];
+
+      dotFrets.forEach(fret => {
+        const cx = margin.left + fret * fretSpacing - fretSpacing / 2;
+        const cy = height / 2;
+        const attrs = { cx: cx, r: 6, class: "fret-dot" };
+
+        if (fret === 12) {
+          const offset = 25;
+          svg.appendChild(createSVGElement("circle", { ...attrs, cy: cy - offset }));
+          svg.appendChild(createSVGElement("circle", { ...attrs, cy: cy + offset }));
+        } else {
+          svg.appendChild(createSVGElement("circle", { ...attrs, cy: cy }));
+        }
+      });
+
+      for (let f = 0; f <= numFrets; f++) {
+        const x = margin.left + f * fretSpacing;
+        svg.appendChild(createSVGElement("line", {
+          x1: x, y1: margin.top, x2: x, y2: height - margin.bottom,
+          class: f === 0 ? "nut" : "fret"
+        }));
+      }
+
+      for (let i = 0; i < strings.length; i++) {
+        const y = margin.top + i * stringSpacing;
+        const strokeWidth = 1 + (i * 0.3);
+        svg.appendChild(createSVGElement("line", {
+          x1: margin.left, y1: y, x2: width - margin.right, y2: y,
+          class: "string",
+          'stroke-width': strokeWidth
+        }));
+      }
+
+      for (let i = 0; i < strings.length; i++) {
+        const openNote = strings[i];
+        const openIdx = getNoteIndex(openNote);
+
+        for (let fret = 0; fret <= numFrets; fret++) {
+          const noteIdx = (openIdx + fret) % 12;
+          const noteDisplay = getNoteName(noteIdx, notation);
+
+          if (scaleNotes.includes(noteDisplay)) {
+            let cx = fret === 0 
+              ? margin.left - fretSpacing / 2 
+              : margin.left + fret * fretSpacing - fretSpacing / 2;
+            const cy = margin.top + i * stringSpacing;
+            const r = 12;
+
+            const isRoot = getNoteIndex(noteDisplay) === getNoteIndex(root);
+            
+            const circle = createSVGElement("circle", {
+              cx: cx, cy: cy, r: r,
+              class: isRoot ? "root-circle" : "note-circle",
+              'data-note': noteDisplay,
+              'data-string': strings[i],
+              'data-fret': fret
+            });
+            
+            const octave = (i < 2) ? 2 : 1;
+            circle.addEventListener("click", () => {
+              initAudioContext();
+              playNote(noteDisplay, 0.5, 0, octave);
+            });
+
+            svg.appendChild(circle);
+            
+            const scaleNoteIdx = scaleNotes.indexOf(noteDisplay);
+            const labelText = showDegrees && scaleNoteIdx !== -1
+              ? (scaleNoteIdx === 0 ? 'R' : degrees[scaleNoteIdx])
+              : noteDisplay;
+
+            const text = createSVGElement("text", {
+              x: cx, y: cy + 4,
+              'text-anchor': "middle",
+              'font-size': "11",
+              'font-weight': "bold",
+              class: "note-label"
+            });
+            text.textContent = labelText;
+            svg.appendChild(text);
+          }
+        }
+      }
+    }
+
+    // ============================================================================
+    // UI RENDERING
+    // ============================================================================
+    
+    function renderScaleAnalysis(scaleName, root, scaleData) {
+      const formula = scaleData.degrees.join(" – ");
+      const whTrail = calculateWHTrail(scaleData.intervals);
+      const family = scaleData.family;
+      const usage = scaleData.usage;
+      const compatible = scaleData.compatibleChords.join(", ");
+      
+      const scaleAnalysisDiv = document.getElementById("scaleAnalysis");
+      scaleAnalysisDiv.innerHTML = `
+        <div class="space-y-3">
+          <div class="flex flex-wrap gap-2 items-center">
+            <span class="scale-badge bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 border border-indigo-300">${family}</span>
+            <span class="text-sm text-gray-600 italic">${usage}</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+              <span class="text-xs font-semibold uppercase text-gray-500 block mb-1">Scale Formula</span>
+              <span class="font-mono text-sm font-medium text-gray-800">${formula}</span>
+            </div>
+            <div class="p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+              <span class="text-xs font-semibold uppercase text-gray-500 block mb-1">Interval Pattern</span>
+              <span class="font-mono text-sm font-medium text-gray-800">${whTrail}</span>
+            </div>
+            <div class="p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+              <span class="text-xs font-semibold uppercase text-gray-500 block mb-1">Compatible Chords</span>
+              <span class="text-sm font-medium text-gray-800">${compatible}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCompatibleChords(compatibleChords, root) {
+      const chordOutputDiv = document.getElementById("chordOutput");
+      const chordErrorP = document.getElementById("chordError");
+      
+      chordOutputDiv.innerHTML = "";
+      chordErrorP.classList.add('hidden');
+
+      if (!compatibleChords || compatibleChords.length === 0) {
+        chordErrorP.textContent = "No compatible chords defined for this scale.";
+        chordErrorP.classList.remove('hidden');
+        return;
+      }
+
+      let html = '<div class="space-y-3">';
+
+      compatibleChords.forEach((chordType) => {
+        const voicings = voicingLibrary[chordType] || [];
+        
+        const clickableVoicings = voicings.map(v => 
+          `<span class="clickable-voicing" onclick="highlightVoicing('${v.trim()}')">${v.trim()}</span>`
+        ).join('');
+
+        html += `
+          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-lg font-bold text-indigo-700">${root}${chordType}</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              ${clickableVoicings || '<em class="text-gray-400 text-sm">No voicings available</em>'}
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      chordOutputDiv.innerHTML = html;
+    }
+
+    // ============================================================================
+    // JAZZ PROGRESSION GENERATORS
+    // ============================================================================
+    
+    const jazzProgressions = {
+      // Chord quality templates
+      qualities: {
+        major: ["Maj7", "Maj9", "Maj13", "6", "6/9"],
+        minor: ["m7", "m9", "m11", "m6"],
+        dominant: ["7", "9", "13", "7♯9", "7♭9", "7♯11", "7alt"],
+        diminished: ["m7♭5", "ø", "dim7"],
+        altered: ["7alt", "7♯5", "7♭5", "7♯9♭13"]
+      }
+    };
+
+    function transposeNote(root, semitones) {
+      const rootIdx = getNoteIndex(root);
+      const newIdx = (rootIdx + semitones + 12) % 12;
+      const notation = document.getElementById("notationSelect").value;
+      return getNoteName(newIdx, notation);
+    }
+
+    function getRandomQuality(type, useExtensions) {
+      const qualities = jazzProgressions.qualities[type] || ["7"];
+      if (!useExtensions) {
+        // Stick to basic 7th chords
+        const basic = {
+          major: ["Maj7"],
+          minor: ["m7"],
+          dominant: ["7"],
+          diminished: ["m7♭5"]
+        };
+        return basic[type] ? basic[type][0] : "7";
+      }
+      return qualities[Math.floor(Math.random() * qualities.length)];
+    }
+
+    function formatBar(chords, beatsPerChord = 4) {
+      if (!Array.isArray(chords)) chords = [chords];
+      const beats = Math.floor(4 / chords.length);
+      return chords.map(c => `${c} (${beats})`).join(' | ');
+    }
+
+    // 12-Bar Blues Generator
+    function generate12BarBlues() {
+      const root = document.getElementById("rootSelect").value;
+      const useExtensions = document.getElementById("showExtensions").checked;
+      const showAnalysis = document.getElementById("showAnalysis").checked;
+
+      const I = root + getRandomQuality('dominant', useExtensions);
+      const IV = transposeNote(root, 5) + getRandomQuality('dominant', useExtensions);
+      const V = transposeNote(root, 7) + getRandomQuality('dominant', useExtensions);
+
+      const progression = [
+        `Bar 1-4:   ${I}  |  ${I}  |  ${I}  |  ${I}`,
+        `Bar 5-6:   ${IV} |  ${IV} |  ${I}  |  ${I}`,
+        `Bar 7-8:   ${V}  |  ${IV} |  ${I}  |  ${I}`,
+        `Bar 9-10:  ${V}  |  ${V}  |  ${I}  |  ${I}`,
+        `Bar 11-12: ${V}  |  ${V}  |  ${I}  |  ${V} (turnaround)`
+      ];
+
+      let analysis = "";
+      if (showAnalysis) {
+        analysis = `
+          <div class="mt-4 p-3 bg-gray-700 rounded-lg">
+            <p class="text-gray-300 text-sm"><strong>Analysis:</strong> Classic 12-bar blues form.</p>
+            <p class="text-gray-400 text-xs mt-1">• Bars 1-4: Tonic (I)</p>
+            <p class="text-gray-400 text-xs">• Bars 5-8: Subdominant move (IV-I)</p>
+            <p class="text-gray-400 text-xs">• Bars 9-12: Dominant turnaround (V-I)</p>
+          </div>
+        `;
+      }
+
+      displayProgression('12-Bar Blues', progression, analysis);
+      logActivity(`Generated 12-Bar Blues in ${root}`);
+    }
+
+    // Parker Blues (Bird Blues) Generator
+    function generateParkerBlues() {
+      const root = document.getElementById("rootSelect").value;
+      const useExtensions = document.getElementById("showExtensions").checked;
+      const showSubs = document.getElementById("showSubstitutions").checked;
+      const showAnalysis = document.getElementById("showAnalysis").checked;
+
+      // Parker Blues uses ii-V substitutions
+      const I = root + getRandomQuality('major', useExtensions);
+      const IV7 = transposeNote(root, 5) + getRandomQuality('dominant', useExtensions);
+      const V7 = transposeNote(root, 7) + getRandomQuality('dominant', useExtensions);
+      
+      // ii-V substitutions
+      const ii_I = transposeNote(root, 2) + "m7";
+      const V7_I = transposeNote(root, 7) + "7";
+      const ii_IV = transposeNote(root, 7) + "m7";
+      const V7_IV = transposeNote(root, 0) + "7";
+      
+      // Tritone sub of V7
+      const bII7 = transposeNote(root, 1) + "7";
+
+      let bars = [
+        `Bar 1-2:   ${I}  |  ${ii_IV} ${V7_IV}`,
+        `Bar 3-4:   ${I}  |  ${ii_I} ${V7_I}`,
+        `Bar 5-6:   ${IV7} |  ${IV7}`,
+        `Bar 7-8:   ${I}  |  ${ii_I} ${V7_I}`,
+        `Bar 9-10:  ${ii_I} ${V7_I}  |  ${ii_IV} ${V7_IV}`,
+        `Bar 11-12: ${I}  |  ${ii_I} ${V7_I}`
+      ];
+
+      if (showSubs) {
+        // Show tritone substitutions
+        bars.push(`<span class="text-yellow-400">Tritone Sub Option: Bar 12: ${I} | ${bII7} (♭II7)</span>`);
+      }
+
+      let analysis = "";
+      if (showAnalysis) {
+        analysis = `
+          <div class="mt-4 p-3 bg-gray-700 rounded-lg">
+            <p class="text-gray-300 text-sm"><strong>Charlie Parker's Bebop Blues:</strong></p>
+            <p class="text-gray-400 text-xs mt-1">• Uses ii-V substitutions instead of just dominant chords</p>
+            <p class="text-gray-400 text-xs">• Adds harmonic motion and voice-leading opportunities</p>
+            <p class="text-gray-400 text-xs">• Essential for bebop improvisation</p>
+            <p class="text-gray-400 text-xs mt-2"><strong>Scales:</strong> Dorian on ii chords, Mixolydian/Altered on V chords</p>
+          </div>
+        `;
+      }
+
+      displayProgression('Parker Blues (Bird Blues)', bars, analysis);
+      logActivity(`Generated Parker Blues in ${root}`);
+    }
+
+    // ii-V-I Generator
+    function generateIIVI() {
+      const root = document.getElementById("rootSelect").value;
+      const useExtensions = document.getElementById("showExtensions").checked;
+      const showSubs = document.getElementById("showSubstitutions").checked;
+      const showAnalysis = document.getElementById("showAnalysis").checked;
+
+      const ii = transposeNote(root, 2) + (useExtensions ? "m9" : "m7");
+      const V = transposeNote(root, 7) + (useExtensions ? "13" : "7");
+      const I = root + (useExtensions ? "Maj9" : "Maj7");
+
+      // Tritone substitution
+      const tritoneV = transposeNote(root, 1) + "7";
+      
+      // Minor ii-V-i
+      const iiMin = transposeNote(root, 2) + "m7♭5";
+      const VMin = transposeNote(root, 7) + "7♭9";
+      const iMin = root + "m6";
+
+      let progressions = [
+        `<span class="text-green-400 font-bold">Major ii-V-I:</span>`,
+        `${ii}  |  ${V}  |  ${I}  |  ${I}`,
+        ``,
+        `<span class="text-blue-400 font-bold">Minor ii-V-i:</span>`,
+        `${iiMin}  |  ${VMin}  |  ${iMin}  |  ${iMin}`
+      ];
+
+      if (showSubs) {
+        progressions.push(``);
+        progressions.push(`<span class="text-yellow-400 font-bold">With Tritone Substitution:</span>`);
+        progressions.push(`${ii}  |  ${tritoneV}  |  ${I}  |  ${I}`);
+        progressions.push(`<span class="text-gray-400 text-xs">(${V} → ${tritoneV})</span>`);
+      }
+
+      let analysis = "";
+      if (showAnalysis) {
+        analysis = `
+          <div class="mt-4 p-3 bg-gray-700 rounded-lg">
+            <p class="text-gray-300 text-sm"><strong>The Most Important Jazz Cadence:</strong></p>
+            <p class="text-gray-400 text-xs mt-1">• <strong>ii chord:</strong> Use Dorian mode</p>
+            <p class="text-gray-400 text-xs">• <strong>V chord:</strong> Use Mixolydian, Lydian Dominant, or Altered scale</p>
+            <p class="text-gray-400 text-xs">• <strong>I chord:</strong> Use Ionian or Lydian</p>
+            <p class="text-yellow-400 text-xs mt-2">💡 Tritone sub: Replace V7 with ♭II7 (shares same tritone)</p>
+          </div>
+        `;
+      }
+
+      displayProgression('ii-V-I Progressions', progressions, analysis);
+      logActivity(`Generated ii-V-I in ${root}`);
+    }
+
+    // Rhythm Changes Generator
+    function generateRhythmChanges() {
+      const root = document.getElementById("rootSelect").value;
+      const useExtensions = document.getElementById("showExtensions").checked;
+      const showAnalysis = document.getElementById("showAnalysis").checked;
+
+      const I = root + getRandomQuality('major', useExtensions);
+      const VI = transposeNote(root, 9) + getRandomQuality('dominant', useExtensions);
+      const II = transposeNote(root, 2) + getRandomQuality('dominant', useExtensions);
+      const V = transposeNote(root, 7) + getRandomQuality('dominant', useExtensions);
+      const III = transposeNote(root, 4) + getRandomQuality('dominant', useExtensions);
+      
+      // A section (8 bars)
+      const A1 = `${I}  |  ${VI}  |  ${II}  |  ${V}`;
+      const A2 = `${I}  |  ${VI}  |  ${II}  |  ${V}`;
+      
+      // B section - Cycle of dominants
+      const B = [
+        `${transposeNote(root, 4)}7  |  ${transposeNote(root, 4)}7  |  ${transposeNote(root, 10)}7  |  ${transposeNote(root, 10)}7`,
+        `${transposeNote(root, 2)}7  |  ${transposeNote(root, 2)}7  |  ${transposeNote(root, 7)}7  |  ${transposeNote(root, 7)}7`
+      ];
+
+      const progression = [
+        `<span class="text-amber-400 font-bold">A Section (bars 1-8):</span>`,
+        A1,
+        A2,
+        ``,
+        `<span class="text-amber-400 font-bold">B Section (bars 9-16) - Bridge:</span>`,
+        ...B,
+        ``,
+        `<span class="text-amber-400 font-bold">A Section (bars 17-24):</span>`,
+        A1,
+        A2
+      ];
+
+      let analysis = "";
+      if (showAnalysis) {
+        analysis = `
+          <div class="mt-4 p-3 bg-gray-700 rounded-lg">
+            <p class="text-gray-300 text-sm"><strong>"I Got Rhythm" by Gershwin - Bebop Standard</strong></p>
+            <p class="text-gray-400 text-xs mt-1">• 32-bar AABA form</p>
+            <p class="text-gray-400 text-xs">• A: I-VI-II-V turnaround (8 bars each)</p>
+            <p class="text-gray-400 text-xs">• B: Cycle of dominants through III-VI-II-V</p>
+            <p class="text-yellow-400 text-xs mt-2">💡 Bridge uses dominant cycle descending by 4ths</p>
+          </div>
+        `;
+      }
+
+      displayProgression('Rhythm Changes (32-bar AABA)', progression, analysis);
+      logActivity(`Generated Rhythm Changes in ${root}`);
+    }
+
+    // Modal Jazz Generator
+    function generateModalJazz() {
+      const root = document.getElementById("rootSelect").value;
+      const showAnalysis = document.getElementById("showAnalysis").checked;
+
+      const modalTypes = [
+        { 
+          name: "Dorian Vamp",
+          chords: [`${root}m7  |  ${root}m7  |  ${root}m7  |  ${root}m7`],
+          scale: `${root} Dorian`,
+          info: "One chord modal vamp - focus on melodic development"
+        },
+        {
+          name: "Lydian Vamp", 
+          chords: [`${root}Maj7♯11  |  ${root}Maj7♯11  |  ${root}Maj7♯11  |  ${root}Maj7♯11`],
+          scale: `${root} Lydian`,
+          info: "Bright, dreamy major sound - think 'Giant Steps' bridge"
+        },
+        {
+          name: "Two-Chord Modal",
+          chords: [
+            `${root}m7  |  ${transposeNote(root, 2)}m7  |  ${root}m7  |  ${transposeNote(root, 2)}m7`
+          ],
+          scale: `${root} Dorian / ${transposeNote(root, 2)} Dorian`,
+          info: "So What/Impressions style - parallel minor movement"
+        }
+      ];
+
+      const selected = modalTypes[Math.floor(Math.random() * modalTypes.length)];
+
+      let analysis = "";
+      if (showAnalysis) {
+        analysis = `
+          <div class="mt-4 p-3 bg-gray-700 rounded-lg">
+            <p class="text-gray-300 text-sm"><strong>Modal Jazz Concept:</strong></p>
+            <p class="text-gray-400 text-xs mt-1">${selected.info}</p>
+            <p class="text-gray-400 text-xs mt-2"><strong>Primary Scale:</strong> ${selected.scale}</p>
+            <p class="text-yellow-400 text-xs mt-2">💡 Focus on horizontal (melodic) rather than vertical (harmonic) movement</p>
+          </div>
+        `;
+      }
+
+      displayProgression(`Modal Jazz: ${selected.name}`, selected.chords, analysis);
+      logActivity(`Generated Modal Jazz in ${root}`);
+    }
+
+    // Jazz Ballad Generator
+    function generateJazzBallad() {
+      const root = document.getElementById("rootSelect").value;
+      const useExtensions = document.getElementById("showExtensions").checked;
+      const showSubs = document.getElementById("showSubstitutions").checked;
+      const showAnalysis = document.getElementById("showAnalysis").checked;
+
+      const I = root + (useExtensions ? "Maj9" : "Maj7");
+      const ii = transposeNote(root, 2) + (useExtensions ? "m9" : "m7");
+      const iii = transposeNote(root, 4) + "m7";
+      const IV = transposeNote(root, 5) + "Maj7";
+      const V = transposeNote(root, 7) + (useExtensions ? "13" : "7");
+      const vi = transposeNote(root, 9) + "m7";
+      
+      // Chromatic approach chords
+      const bVII = transposeNote(root, 10) + "7";
+      const bIII = transposeNote(root, 3) + "7";
+
+      let progression = [
+        `${I}  |  ${vi}  |  ${ii}  |  ${V}`,
+        `${I}  |  ${IV}  |  ${iii}  ${vi}  |  ${ii}  ${V}`,
+        `${I}  |  ${I}  |  ${ii}  |  ${V}`,
+        `${I}  |  ${IV}  |  ${ii}  |  ${V}  ${I}`
+      ];
+
+      if (showSubs) {
+        progression.push(``);
+        progression.push(`<span class="text-yellow-400 font-bold">With Chromatic Approaches:</span>`);
+        progression.push(`${I}  |  ${bIII}  ${vi}  |  ${ii}  |  ${bVII}  ${V}`);
+      }
+
+      let analysis = "";
+      if (showAnalysis) {
+        analysis = `
+          <div class="mt-4 p-3 bg-gray-700 rounded-lg">
+            <p class="text-gray-300 text-sm"><strong>Jazz Ballad Harmony:</strong></p>
+            <p class="text-gray-400 text-xs mt-1">• Rich extensions: 9ths, 11ths, 13ths</p>
+            <p class="text-gray-400 text-xs">• Smooth voice leading between chords</p>
+            <p class="text-gray-400 text-xs">• Chromatic approaches add color</p>
+            <p class="text-yellow-400 text-xs mt-2">💡 Play with rubato, focus on melody and harmony interaction</p>
+          </div>
+        `;
+      }
+
+      displayProgression('Jazz Ballad', progression, analysis);
+      logActivity(`Generated Jazz Ballad in ${root}`);
+    }
+
+    function displayProgression(title, bars, analysis = "") {
+      const output = document.getElementById("progressionOutput");
+      
+      const barsHTML = bars.map(bar => {
+        // Check if it's a title/label line
+        if (bar.includes('font-bold') || bar.includes('text-xs') || bar === '') {
+          return `<div class="text-center my-2">${bar}</div>`;
+        }
+        return `<div class="font-mono text-base leading-relaxed">${bar}</div>`;
+      }).join('');
+
+      output.innerHTML = `
+        <div class="text-center mb-4">
+          <h3 class="text-2xl font-bold text-white mb-1">${title}</h3>
+          <p class="text-gray-400 text-sm">Key of ${document.getElementById("rootSelect").value}</p>
+        </div>
+        <div class="bg-gray-900 p-4 rounded-lg space-y-1 text-gray-100">
+          ${barsHTML}
+        </div>
+        ${analysis}
+      `;
+    }
+
+    // ============================================================================
+    // PRACTICE GENERATORS
+    // ============================================================================
+    
+    function generateMelodicPattern() {
+      const scaleName = document.getElementById("scaleSelect").value;
+      const root = document.getElementById("rootSelect").value;
+      if (!root || !scaleName) {
+        showPracticeOutput("Please select a scale first.");
+        return;
+      }
+
+      const scaleData = buildScaleFromDB(root, scaleName);
+      const notes = scaleData.scaleNotes;
+      
+      const patterns = [
+        { name: "Ascending", pattern: notes },
+        { name: "Descending", pattern: [...notes].reverse() },
+        { name: "Ascending 3rds", pattern: notes.flatMap((n, i) => i < notes.length - 2 ? [n, notes[i+2]] : []) },
+        { name: "Descending 3rds", pattern: notes.slice().reverse().flatMap((n, i, arr) => i < arr.length - 2 ? [n, arr[i+2]] : []) }
+      ];
+
+      const selected = patterns[Math.floor(Math.random() * patterns.length)];
+      
+      showPracticeOutput(`
+        <h4 class="font-semibold text-lg mb-2">🎵 ${selected.name} Pattern</h4>
+        <p class="text-sm text-gray-600 mb-3">Practice this melodic sequence on your fretboard:</p>
+        <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+          <p class="font-mono text-center text-lg">${selected.pattern.join(' → ')}</p>
+        </div>
+        <p class="text-xs text-gray-500 mt-3">💡 Tip: Start slowly and focus on clean transitions between notes.</p>
+      `);
+
+      // Play the pattern
+      let delay = 0;
+      selected.pattern.forEach(note => {
+        playNote(note, 0.2, delay, 1);
+        delay += 0.25;
+      });
+    }
+
+    function generateIntervalSequence() {
+      const scaleName = document.getElementById("scaleSelect").value;
+      const root = document.getElementById("rootSelect").value;
+      if (!root || !scaleName) {
+        showPracticeOutput("Please select a scale first.");
+        return;
+      }
+
+      const scaleData = buildScaleFromDB(root, scaleName);
+      const notes = scaleData.scaleNotes;
+      
+      const intervals = [
+        { name: "3rds", step: 2 },
+        { name: "4ths", step: 3 },
+        { name: "5ths", step: 4 },
+        { name: "6ths", step: 5 }
+      ];
+
+      const selected = intervals[Math.floor(Math.random() * intervals.length)];
+      const sequence = [];
+      
+      for (let i = 0; i < notes.length; i++) {
+        const note1 = notes[i];
+        const note2 = notes[(i + selected.step) % notes.length];
+        sequence.push(`${note1}–${note2}`);
+      }
+      
+      showPracticeOutput(`
+        <h4 class="font-semibold text-lg mb-2">🎸 Interval Sequence: ${selected.name}</h4>
+        <p class="text-sm text-gray-600 mb-3">Practice playing these interval pairs:</p>
+        <div class="p-4 bg-purple-50 rounded-lg border border-purple-200">
+          <p class="font-mono text-center">${sequence.join(' | ')}</p>
+        </div>
+        <p class="text-xs text-gray-500 mt-3">💡 Tip: Listen to the quality of each interval as you play.</p>
+      `);
+    }
+
+    function generateChordProgression() {
+      const scaleName = document.getElementById("scaleSelect").value;
+      const root = document.getElementById("rootSelect").value;
+      if (!root || !scaleName) {
+        showPracticeOutput("Please select a scale first.");
+        return;
+      }
+
+      const scaleData = buildScaleFromDB(root, scaleName);
+      const chords = scaleData.compatibleChords;
+      
+      if (chords.length === 0) {
+        showPracticeOutput("This scale doesn't have predefined chord progressions.");
+        return;
+      }
+
+      // Common progressions
+      const progressions = [
+        [chords[0], chords[0], chords[0], chords[0]],
+        [chords[0], chords[1 % chords.length], chords[0], chords[1 % chords.length]],
+      ];
+
+      const selected = progressions[Math.floor(Math.random() * progressions.length)];
+      const fullChords = selected.map(c => `${root}${c}`);
+      
+      showPracticeOutput(`
+        <h4 class="font-semibold text-lg mb-2">🎹 Chord Progression Practice</h4>
+        <p class="text-sm text-gray-600 mb-3">Try improvising over this progression:</p>
+        <div class="p-4 bg-teal-50 rounded-lg border border-teal-200">
+          <p class="font-mono text-center text-xl">${fullChords.join('  |  ')}</p>
+        </div>
+        <p class="text-xs text-gray-500 mt-3">💡 Tip: Loop this progression and explore different note combinations from the scale.</p>
+      `);
+    }
+
+    function generateSequenceChallenge() {
+      const scaleName = document.getElementById("scaleSelect").value;
+      const root = document.getElementById("rootSelect").value;
+      if (!root || !scaleName) {
+        showPracticeOutput("Please select a scale first.");
+        return;
+      }
+
+      const scaleData = buildScaleFromDB(root, scaleName);
+      const notes = scaleData.scaleNotes;
+      
+      const challenges = [
+        { name: "Triads (1-3-5)", notes: [0, 2, 4].map(i => notes[i % notes.length]) },
+        { name: "Arpeggios (1-3-5-7)", notes: [0, 2, 4, 6].map(i => notes[i % notes.length]) },
+        { name: "Skip Patterns", notes: notes.filter((n, i) => i % 2 === 0) }
+      ];
+
+      const selected = challenges[Math.floor(Math.random() * challenges.length)];
+      
+      showPracticeOutput(`
+        <h4 class="font-semibold text-lg mb-2">🎼 Sequence Challenge: ${selected.name}</h4>
+        <p class="text-sm text-gray-600 mb-3">Master this sequence pattern:</p>
+        <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+          <p class="font-mono text-center text-lg">${selected.notes.join(' → ')}</p>
+        </div>
+        <p class="text-xs text-gray-500 mt-3">💡 Tip: Practice ascending and descending through all positions on the neck.</p>
+      `);
+
+      // Play the sequence
+      let delay = 0;
+      selected.notes.forEach(note => {
+        playNote(note, 0.2, delay, 1);
+        delay += 0.25;
+      });
+    }
+
+    function showPracticeOutput(html) {
+      document.getElementById("practiceOutput").innerHTML = html;
+    }
+
+    // ============================================================================
+    // QUIZ SYSTEM
+    // ============================================================================
+    
+    let quizState = {
+      currentQuestion: null,
+      score: 0,
+      total: 0,
+      isAnswered: false
+    };
+
+    function startQuiz() {
+      const scaleName = document.getElementById("scaleSelect").value;
+      const root = document.getElementById("rootSelect").value;
+      if (!root || !scaleName) {
+        alert("Please select a scale first.");
+        return;
+      }
+
+      quizState.score = 0;
+      quizState.total = 0;
+      document.getElementById("quizFeedback").classList.add("hidden");
+      
+      nextQuestion();
+    }
+
+    function nextQuestion() {
+      const scaleName = document.getElementById("scaleSelect").value;
+      const root = document.getElementById("rootSelect").value;
+      const scaleData = buildScaleFromDB(root, scaleName);
+      
+      // Pick a random note from the scale (not the root)
+      const noteIndex = Math.floor(Math.random() * (scaleData.scaleNotes.length - 1)) + 1;
+      const targetNote = scaleData.scaleNotes[noteIndex];
+      const correctDegree = scaleData.degrees[noteIndex];
+      
+      quizState.currentQuestion = {
+        note: targetNote,
+        correctDegree: correctDegree,
+        noteIndex: noteIndex
+      };
+      quizState.isAnswered = false;
+
+      document.getElementById("quizQuestion").innerHTML = `
+        <span class="text-2xl">🎯</span> What scale degree is <strong class="text-indigo-700 text-xl">${targetNote}</strong> in ${root} ${scaleName}?
+      `;
+
+      // Generate options (include correct + 3 random wrong)
+      const allDegrees = ["2", "♭2", "3", "♭3", "4", "#4", "5", "♭5", "6", "♭6", "7", "♭7"];
+      const wrongDegrees = allDegrees.filter(d => d !== correctDegree);
+      const shuffled = wrongDegrees.sort(() => Math.random() - 0.5).slice(0, 3);
+      const options = [...shuffled, correctDegree].sort(() => Math.random() - 0.5);
+
+      const optionsHTML = options.map(deg => `
+        <div class="quiz-option" onclick="checkAnswer('${deg}')">${deg}</div>
+      `).join('');
+
+      document.getElementById("quizOptions").innerHTML = optionsHTML;
+      document.getElementById("nextQuestionBtn").classList.add("hidden");
+      document.getElementById("quizFeedback").classList.add("hidden");
+
+      // Play the note
+      playNote(targetNote, 0.5, 0, 1);
+    }
+
+    function checkAnswer(selected) {
+      if (quizState.isAnswered) return;
+      
+      quizState.isAnswered = true;
+      quizState.total++;
+
+      const isCorrect = selected === quizState.currentQuestion.correctDegree;
+      if (isCorrect) quizState.score++;
+
+      // Update UI
+      const options = document.querySelectorAll(".quiz-option");
+      options.forEach(opt => {
+        if (opt.textContent === selected) {
+          opt.classList.add(isCorrect ? "correct" : "incorrect");
+        }
+        if (opt.textContent === quizState.currentQuestion.correctDegree) {
+          opt.classList.add("correct");
+        }
+        opt.style.pointerEvents = "none";
+      });
+
+      const feedbackDiv = document.getElementById("quizFeedback");
+      feedbackDiv.className = `mt-4 p-4 rounded-lg ${isCorrect ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`;
+      feedbackDiv.innerHTML = `
+        <p class="font-semibold ${isCorrect ? 'text-green-800' : 'text-red-800'}">
+          ${isCorrect ? '✅ Correct!' : '❌ Incorrect'}
+        </p>
+        <p class="text-sm ${isCorrect ? 'text-green-700' : 'text-red-700'} mt-1">
+          ${quizState.currentQuestion.note} is the <strong>${quizState.currentQuestion.correctDegree}</strong> degree.
+        </p>
+        <p class="text-sm text-gray-600 mt-2">Score: ${quizState.score} / ${quizState.total}</p>
+      `;
+      feedbackDiv.classList.remove("hidden");
+
+      document.getElementById("nextQuestionBtn").classList.remove("hidden");
+      
+      // Update stats
+      updateStats();
+    }
+
+    // ============================================================================
+    // STATISTICS SYSTEM
+    // ============================================================================
+    
+    function loadStats() {
+      const stats = localStorage.getItem("guitarScaleStats");
+      return stats ? JSON.parse(stats) : {
+        scalesLearned: new Set(),
+        quizCorrect: 0,
+        quizTotal: 0,
+        practiceSessions: 0,
+        recentActivity: []
+      };
+    }
+
+    function saveStats(stats) {
+      // Convert Set to Array for JSON storage
+      const saveData = {
+        ...stats,
+        scalesLearned: Array.from(stats.scalesLearned)
+      };
+      localStorage.setItem("guitarScaleStats", JSON.stringify(saveData));
+    }
+
+    function updateStats() {
+      const stats = loadStats();
+      
+      // Convert array back to Set if needed
+      if (Array.isArray(stats.scalesLearned)) {
+        stats.scalesLearned = new Set(stats.scalesLearned);
+      }
+
+      const scaleName = document.getElementById("scaleSelect").value;
+      const root = document.getElementById("rootSelect").value;
+      
+      if (scaleName && root) {
+        stats.scalesLearned.add(`${root} ${scaleName}`);
+      }
+
+      if (quizState.total > 0) {
+        stats.quizCorrect = quizState.score;
+        stats.quizTotal = quizState.total;
+      }
+
+      saveStats(stats);
+      displayStats();
+    }
+
+    function displayStats() {
+      const stats = loadStats();
+      
+      // Convert array back to Set if needed
+      if (Array.isArray(stats.scalesLearned)) {
+        stats.scalesLearned = new Set(stats.scalesLearned);
+      }
+
+      document.getElementById("statScalesLearned").textContent = stats.scalesLearned.size;
+      
+      const accuracy = stats.quizTotal > 0 
+        ? Math.round((stats.quizCorrect / stats.quizTotal) * 100) 
+        : 0;
+      document.getElementById("statQuizScore").textContent = `${accuracy}%`;
+      
+      document.getElementById("statPracticeTime").textContent = stats.practiceSessions;
+
+      // Recent activity
+      const activityDiv = document.getElementById("recentActivity");
+      if (stats.recentActivity && stats.recentActivity.length > 0) {
+        activityDiv.innerHTML = stats.recentActivity.slice(0, 5).map(activity => `
+          <div class="text-sm text-gray-600 py-1 border-b border-gray-200">
+            <span class="font-medium">${activity.action}</span> - <span class="text-xs text-gray-400">${activity.time}</span>
+          </div>
+        `).join('');
+      } else {
+        activityDiv.innerHTML = '<p class="text-sm text-gray-500 italic">No activity yet. Start practicing!</p>';
+      }
+    }
+
+    function logActivity(action) {
+      const stats = loadStats();
+      
+      // Convert array back to Set if needed
+      if (Array.isArray(stats.scalesLearned)) {
+        stats.scalesLearned = new Set(stats.scalesLearned);
+      }
+
+      if (!stats.recentActivity) {
+        stats.recentActivity = [];
+      }
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      
+      stats.recentActivity.unshift({
+        action: action,
+        time: timeStr
+      });
+
+      // Keep only last 10 activities
+      stats.recentActivity = stats.recentActivity.slice(0, 10);
+      
+      stats.practiceSessions = (stats.practiceSessions || 0) + 1;
+
+      saveStats(stats);
+      displayStats();
+    }
+
+    function resetStats() {
+      if (confirm("Are you sure you want to reset all statistics? This cannot be undone.")) {
+        localStorage.removeItem("guitarScaleStats");
+        displayStats();
+        alert("Statistics have been reset.");
+      }
+    }
+
+    // ============================================================================
+    // MAIN UPDATE FUNCTION
+    // ============================================================================
+    
+    function updateScale() {
+      const scaleName = document.getElementById("scaleSelect").value;
+      const root = document.getElementById("rootSelect").value;
+
+      if (!root || !scaleName) {
+        document.getElementById("scaleNotes").innerHTML = 
+          `<span class="text-red-600 font-bold">⚠️ Please select a root note and a scale.</span>`;
+        document.getElementById("fretboard").innerHTML = "";
+        document.getElementById("chordOutput").innerHTML = "";
+        document.getElementById("chordError").classList.add('hidden');
+        document.getElementById("scaleAnalysis").innerHTML = "";
+        return;
+      }
+
+      const scaleData = buildScaleFromDB(root, scaleName);
+      
+      document.getElementById("scaleNotes").innerHTML =
+        `<strong class="text-lg">${root} ${scaleName}</strong> - Notes: <span class="font-bold text-indigo-900 text-lg">${scaleData.scaleNotes.join(" – ")}</span>`;
+      
+      renderScaleAnalysis(scaleName, root, scaleDB[scaleName]);
+      drawFretboard(scaleData.scaleNotes, root, scaleData.degrees, scaleName);
+      renderCompatibleChords(scaleData.compatibleChords, root);
+      
+      updateStats();
+      logActivity(`Practiced ${root} ${scaleName}`);
+    }
+
+    // ============================================================================
+    // TAB SYSTEM
+    // ============================================================================
+    
+    function initTabs() {
+      const tabButtons = document.querySelectorAll('.tab-button');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const targetTab = button.dataset.tab;
+
+          tabButtons.forEach(btn => btn.classList.remove('active'));
+          tabContents.forEach(content => content.classList.remove('active'));
+
+          button.classList.add('active');
+          document.getElementById(`tab-${targetTab}`).classList.add('active');
+        });
+      });
+    }
+
+    // ============================================================================
+    // INITIALIZATION
+    // ============================================================================
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      // Populate dropdowns
+      const familySelect = document.getElementById("familySelect");
+      const scaleSelect = document.getElementById("scaleSelect");
+      const rootSelect = document.getElementById("rootSelect");
+
+      // Populate family dropdown
+      const families = getAllFamilies();
+      families.forEach(family => {
+        const opt = document.createElement("option");
+        opt.value = family;
+        opt.textContent = family;
+        familySelect.appendChild(opt);
+      });
+
+      // Populate root notes
+      allRootNotes.forEach(note => {
+        const opt = document.createElement("option");
+        opt.value = note;
+        opt.textContent = note;
+        rootSelect.appendChild(opt);
+      });
+
+      // Update scale choices
+      function updateScaleChoices() {
+        scaleSelect.innerHTML = "";
+        const selectedFamily = familySelect.value;
+        const scales = getScalesByFamily(selectedFamily);
+        
+        scales.forEach(scaleName => {
+          const opt = document.createElement("option");
+          opt.value = scaleName;
+          opt.textContent = scaleName;
+          scaleSelect.appendChild(opt);
+        });
+
+        if (rootSelect.value) {
+          updateScale();
+        }
+      }
+
+      // Set defaults
+      rootSelect.value = 'C';
+      familySelect.value = 'Major';
+      updateScaleChoices();
+
+      // Event listeners
+      familySelect.addEventListener("change", updateScaleChoices);
+      scaleSelect.addEventListener("change", updateScale);
+      rootSelect.addEventListener("change", updateScale);
+      document.getElementById("notationSelect").addEventListener("change", updateScale);
+      document.getElementById("degreeToggle").addEventListener("change", updateScale);
+      
+      document.getElementById("showScaleBtn").addEventListener("click", updateScale);
+      document.getElementById("clearHighlightsBtn").addEventListener("click", clearVoicingHighlights);
+
+      document.getElementById("playScaleBtn").addEventListener("click", () => {
+        const scaleName = scaleSelect.value;
+        const root = rootSelect.value;
+        if (!root || !scaleName) return;
+        
+        initAudioContext();
+        const scaleData = buildScaleFromDB(root, scaleName);
+        playScale(scaleData.scaleNotes);
+      });
+
+      document.getElementById("randomScaleBtn").addEventListener("click", () => {
+        const allScales = Object.keys(scaleDB);
+        const randomScale = allScales[Math.floor(Math.random() * allScales.length)];
+        const randomRoot = allRootNotes[Math.floor(Math.random() * allRootNotes.length)];
+        
+        rootSelect.value = randomRoot;
+        
+        // Find the family of this scale
+        const scaleFamily = scaleDB[randomScale].family;
+        familySelect.value = scaleFamily;
+        updateScaleChoices();
+        
+        scaleSelect.value = randomScale;
+        updateScale();
+        
+        logActivity(`Randomized to ${randomRoot} ${randomScale}`);
+      });
+
+      // Practice generators
+      document.getElementById("generateMelodicBtn").addEventListener("click", () => {
+        generateMelodicPattern();
+        logActivity("Generated melodic pattern");
+      });
+      
+      document.getElementById("generateIntervalBtn").addEventListener("click", () => {
+        generateIntervalSequence();
+        logActivity("Generated interval sequence");
+      });
+      
+      document.getElementById("generateProgressionBtn").addEventListener("click", () => {
+        generateChordProgression();
+        logActivity("Generated chord progression");
+      });
+      
+      document.getElementById("generateSequenceBtn").addEventListener("click", () => {
+        generateSequenceChallenge();
+        logActivity("Generated sequence challenge");
+      });
+
+      // Jazz progression generators
+      document.getElementById("generate12BarBtn").addEventListener("click", generate12BarBlues);
+      document.getElementById("generateParkerBtn").addEventListener("click", generateParkerBlues);
+      document.getElementById("generateIIVIBtn").addEventListener("click", generateIIVI);
+      document.getElementById("generateRhythmBtn").addEventListener("click", generateRhythmChanges);
+      document.getElementById("generateModalBtn").addEventListener("click", generateModalJazz);
+      document.getElementById("generateBalladBtn").addEventListener("click", generateJazzBallad);
+
+      // Quiz system
+      document.getElementById("startQuizBtn").addEventListener("click", () => {
+        startQuiz();
+        logActivity("Started interval quiz");
+      });
+      
+      document.getElementById("nextQuestionBtn").addEventListener("click", nextQuestion);
+
+      // Stats
+      document.getElementById("resetStatsBtn").addEventListener("click", resetStats);
+
+      // Initialize tabs
+      initTabs();
+
+      // Load and display stats
+      displayStats();
+
+      // Initial scale display
+      updateScale();
+    });
+
+    // Make functions globally accessible for onclick attributes
+    window.highlightVoicing = highlightVoicing;
+    window.checkAnswer = checkAnswer;
+  </script>
+
+</body>
+</html>
