@@ -35,10 +35,48 @@
 }
 
 .fretboard-container {
+  position: relative;
   overflow-x: auto;
   max-width: 100%;
   background: linear-gradient(to bottom, #7c5e4a 0%, #6e4e3e 100%);
   border-radius: 0.5rem;
+}
+
+.mobile-swipe-hint {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.16);
+  padding: 6px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  color: #f9fafb;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  animation: swipeHintPulse 2.2s infinite;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes swipeHintPulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+
+.audio-error-toast {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-left: 4px solid #f59e0b;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  font-size: 0.875rem;
+  z-index: 50;
 }
 
 .string { 
@@ -1018,14 +1056,38 @@ code {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
 
+    function showAudioError(message = 'Audio disabled - tap anywhere to enable sound.') {
+      if (document.querySelector('.audio-error-toast')) return;
+      const toast = document.createElement('div');
+      toast.className = 'audio-error-toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 5000);
+    }
+
     function initAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new AudioContext();
+      if (!AudioContext) {
+        console.error('Web Audio API is not supported in this browser.');
+        showAudioError('Web Audio API is not supported in this browser.');
+        return null;
       }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume().catch(e => console.error("AudioContext resume failed:", e));
+
+      try {
+        if (!audioCtx) {
+          audioCtx = new AudioContext();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(error => {
+            console.error('AudioContext resume failed:', error);
+            showAudioError();
+          });
+        }
+        return audioCtx;
+      } catch (error) {
+        console.error('Audio initialization failed:', error);
+        showAudioError();
+        return null;
       }
-      return audioCtx;
     }
     
     function getFrequency(noteName) {
@@ -1043,6 +1105,10 @@ code {
     function playNote(noteName, duration = 0.3, delay = 0, octave = 0) {
       try {
         const context = initAudioContext();
+        if (!context) {
+          showAudioError();
+          return;
+        }
         let freq = getFrequency(noteName);
         if (freq === 0) return;
         freq = freq * Math.pow(2, octave);
@@ -1063,6 +1129,7 @@ code {
         osc.stop(context.currentTime + delay + duration);
       } catch (error) {
         console.error("Error playing note:", error);
+        showAudioError();
       }
     }
     
@@ -1075,11 +1142,14 @@ code {
       playNote(scaleNotes[0], 0.3, delay, 2);
     }
 
-    function playChord(noteNames) {
-      initAudioContext();
-      noteNames.forEach((note, index) => {
-        const octave = (index > 3) ? 1 : 0;
-        playNote(note, 0.8, 0, octave);
+    function playChord(noteEntries) {
+      noteEntries.forEach(entry => {
+        const noteName = typeof entry === 'string' ? entry : entry.note;
+        const octave = typeof entry === 'object' && entry !== null && 'octave' in entry
+          ? entry.octave
+          : 0;
+        if (!noteName) return;
+        playNote(noteName, 0.8, 0, octave);
       });
     }
 
@@ -1110,6 +1180,8 @@ code {
         fretMarkers: [3, 5, 7, 9, 12, 15],
         mobileMaxFrets: 8
       };
+
+      const STRING_OCTAVE_OFFSETS = [-1, -1, 0, 0, 0, 1];
 
       const state = {
         startFret: 0,
@@ -1146,6 +1218,13 @@ code {
         if (!container) return;
         container.innerHTML = '';
 
+        const shouldShowSwipeHint = isMobile();
+        const swipeHint = shouldShowSwipeHint ? document.createElement('div') : null;
+        if (swipeHint) {
+          swipeHint.className = 'mobile-swipe-hint';
+          swipeHint.innerHTML = '<span>⬅️</span><span class="font-semibold tracking-wide">Swipe</span><span>➡️</span>';
+        }
+
         const { width, height } = state.lastDimensions;
         const drawingWidth = width - CONFIG.margin.left - CONFIG.margin.right;
         const fretSpacing = drawingWidth / (state.visibleFrets + 0.5);
@@ -1167,6 +1246,10 @@ code {
         drawNotes(svg, fretSpacing, stringSpacing, scaleData, showDegrees);
 
         container.appendChild(svg);
+        if (swipeHint) {
+          container.appendChild(swipeHint);
+          setTimeout(() => swipeHint.remove(), 4000);
+        }
       }
 
       function attachSwipeHandlers(svg, scaleData) {
@@ -1263,7 +1346,7 @@ code {
               class: isRoot ? 'root-circle' : 'note-circle'
             });
 
-            const octave = s >= CONFIG.numStrings - 2 ? 2 : 1;
+            const octave = STRING_OCTAVE_OFFSETS[s] ?? 0;
             circle.addEventListener('click', () => {
               initAudioContext();
               playNote(noteName, 0.5, 0, octave);
@@ -1327,7 +1410,10 @@ code {
           }));
 
           const noteIndex = (CONFIG.stringTuning[stringIndex] + fretNum) % 12;
-          notesToPlay.push(getNoteName(noteIndex, 'sharp'));
+          notesToPlay.push({
+            note: getNoteName(noteIndex, 'sharp'),
+            octave: STRING_OCTAVE_OFFSETS[stringIndex] ?? 0
+          });
         });
 
         if (notesToPlay.length > 0) {
