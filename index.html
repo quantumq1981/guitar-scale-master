@@ -1096,179 +1096,248 @@ code {
     }
 
     // ============================================================================
-    // FRETBOARD RENDERING
+    // FRETBOARD RENDERING (Module)
     // ============================================================================
-    
-    function clearVoicingHighlights() {
-      document.querySelectorAll('.voicing-highlight').forEach(el => el.remove());
-    }
 
-    function highlightVoicing(voicingString) {
-      clearVoicingHighlights();
+    const FretboardRenderer = (() => {
+      const CONFIG = {
+        numFrets: 15,
+        numStrings: 6,
+        width: 1000,
+        height: 180,
+        margin: { left: 40, top: 20, right: 20, bottom: 20 },
+        stringTuning: [4, 11, 7, 2, 9, 4], // E B G D A E (high to low)
+        fretMarkers: [3, 5, 7, 9, 12, 15],
+        mobileMaxFrets: 8
+      };
 
-      const svg = document.getElementById("fretboard").querySelector('svg');
-      if (!svg || !voicingString) return;
+      const state = {
+        startFret: 0,
+        lastScale: null,
+        showDegrees: false,
+        lastDimensions: { width: CONFIG.width, height: CONFIG.height },
+        visibleFrets: CONFIG.numFrets
+      };
 
-      const frets = voicingString.trim().split(/\s+/);
-      if (frets.length !== 6) {
-        console.error("Invalid voicing string:", voicingString);
-        return;
-      }
+      const isMobile = () => window.innerWidth < 768;
 
-      const strings = ["E","B","G","D","A","E"];
-      const stringRoots = ["E", "A", "D", "G", "B", "E"];
-      const numFrets = 15;
-      const width = 1000;
-      const height = 180;
-      const margin = { left: 40, top: 20, right: 20, bottom: 20 };
-      const drawingWidth = width - margin.left - margin.right;
-      const fretSpacing = drawingWidth / (numFrets + 0.5);
-      const stringSpacing = (height - margin.top - margin.bottom) / (strings.length - 1);
+      const getVisibleFrets = () => (isMobile() ? CONFIG.mobileMaxFrets : CONFIG.numFrets);
 
-      const notesToPlay = [];
+      const clampStartFret = start => {
+        const maxStart = CONFIG.numFrets - getVisibleFrets();
+        return Math.max(0, Math.min(maxStart, start));
+      };
 
-      for (let i = 0; i < frets.length; i++) {
-        const fretChar = frets[i];
-        if (fretChar === 'x' || fretChar === 'X') continue;
-        
-        const f = parseInt(fretChar, 10);
-        if (isNaN(f)) continue;
+      const getDimensions = () => ({
+        width: isMobile() ? 700 : CONFIG.width,
+        height: CONFIG.height
+      });
 
-        const rootIdx = getNoteIndex(stringRoots[i]);
-        const noteIdx = (rootIdx + f) % 12;
-        notesToPlay.push(getNoteName(noteIdx, 'sharp'));
+      function render(scaleData, showDegrees = false) {
+        if (!scaleData) return;
 
-        let cx = f === 0 
-          ? margin.left - fretSpacing / 2 
-          : margin.left + f * fretSpacing - fretSpacing / 2;
-            
-        const stringYIndex = (strings.length - 1) - i;
-        const cy = margin.top + stringYIndex * stringSpacing;
-        const r = 11;
-        
-        const highlightCircle = createSVGElement("circle", {
-          cx: cx, cy: cy, r: r,
-          class: "voicing-highlight",
+        state.lastScale = scaleData;
+        state.showDegrees = showDegrees;
+        state.visibleFrets = getVisibleFrets();
+        state.startFret = clampStartFret(state.startFret);
+        state.lastDimensions = getDimensions();
+
+        const container = document.getElementById('fretboard');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const { width, height } = state.lastDimensions;
+        const drawingWidth = width - CONFIG.margin.left - CONFIG.margin.right;
+        const fretSpacing = drawingWidth / (state.visibleFrets + 0.5);
+        const stringSpacing = (height - CONFIG.margin.top - CONFIG.margin.bottom) / (CONFIG.numStrings - 1);
+
+        const svg = createSVGElement('svg', {
+          viewBox: `0 0 ${width} ${height}`,
+          preserveAspectRatio: 'xMinYMin meet',
+          style: 'width: 100%; min-width: 320px; height: auto;',
+          role: 'img',
+          'aria-label': `${scaleData.root} ${scaleData.name} scale on guitar fretboard`
         });
-        svg.appendChild(highlightCircle);
+
+        attachSwipeHandlers(svg, scaleData);
+
+        drawFrets(svg, fretSpacing, height);
+        drawStrings(svg, stringSpacing, width);
+        drawMarkers(svg, fretSpacing, height);
+        drawNotes(svg, fretSpacing, stringSpacing, scaleData, showDegrees);
+
+        container.appendChild(svg);
       }
-      
-      if (notesToPlay.length > 0) {
-        playChord(notesToPlay);
+
+      function attachSwipeHandlers(svg, scaleData) {
+        let touchStartX = 0;
+
+        svg.addEventListener('touchstart', event => {
+          if (event.touches.length > 0) {
+            touchStartX = event.touches[0].clientX;
+          }
+        }, { passive: true });
+
+        svg.addEventListener('touchend', event => {
+          if (!event.changedTouches || event.changedTouches.length === 0) return;
+          const diff = touchStartX - event.changedTouches[0].clientX;
+          if (Math.abs(diff) < 50) return;
+
+          const direction = diff > 0 ? 1 : -1;
+          state.startFret = clampStartFret(state.startFret + direction);
+          render(scaleData, state.showDegrees);
+        }, { passive: true });
       }
-    }
 
-    function drawFretboard(scaleNotes, root, degrees, scaleName) {
-      clearVoicingHighlights();
-      
-      const strings = ["E","B","G","D","A","E"];
-      const notation = document.getElementById("notationSelect").value;
-      const numFrets = 15;
-      const width = 1000;
-      const height = 180;
-      const margin = { left: 40, top: 20, right: 20, bottom: 20 };
-      const showDegrees = document.getElementById("degreeToggle").checked;
-
-      const fretboardDiv = document.getElementById("fretboard");
-      fretboardDiv.innerHTML = "";
-
-      const svg = createSVGElement("svg", {
-        viewBox: `0 0 ${width} ${height}`,
-        preserveAspectRatio: "xMinYMin meet",
-        style: "width: 100%; min-width: 900px; height: auto;",
-        role: "img",
-        'aria-label': `${root} ${scaleName} scale on guitar fretboard`
-      });
-      fretboardDiv.appendChild(svg);
-
-      const drawingWidth = width - margin.left - margin.right;
-      const fretSpacing = drawingWidth / (numFrets + 0.5);
-      const stringSpacing = (height - margin.top - margin.bottom) / (strings.length - 1);
-      const dotFrets = [3, 5, 7, 9, 12, 15];
-
-      dotFrets.forEach(fret => {
-        const cx = margin.left + fret * fretSpacing - fretSpacing / 2;
-        const cy = height / 2;
-        const attrs = { cx: cx, r: 6, class: "fret-dot" };
-
-        if (fret === 12) {
-          const offset = 25;
-          svg.appendChild(createSVGElement("circle", { ...attrs, cy: cy - offset }));
-          svg.appendChild(createSVGElement("circle", { ...attrs, cy: cy + offset }));
-        } else {
-          svg.appendChild(createSVGElement("circle", { ...attrs, cy: cy }));
+      function drawFrets(svg, fretSpacing, height) {
+        for (let f = 0; f <= state.visibleFrets; f++) {
+          const actualFret = f + state.startFret;
+          const x = CONFIG.margin.left + f * fretSpacing;
+          svg.appendChild(createSVGElement('line', {
+            x1: x,
+            y1: CONFIG.margin.top,
+            x2: x,
+            y2: height - CONFIG.margin.bottom,
+            class: actualFret === 0 ? 'nut' : 'fret'
+          }));
         }
-      });
-
-      for (let f = 0; f <= numFrets; f++) {
-        const x = margin.left + f * fretSpacing;
-        svg.appendChild(createSVGElement("line", {
-          x1: x, y1: margin.top, x2: x, y2: height - margin.bottom,
-          class: f === 0 ? "nut" : "fret"
-        }));
       }
 
-      for (let i = 0; i < strings.length; i++) {
-        const y = margin.top + i * stringSpacing;
-        const strokeWidth = 1 + (i * 0.3);
-        svg.appendChild(createSVGElement("line", {
-          x1: margin.left, y1: y, x2: width - margin.right, y2: y,
-          class: "string",
-          'stroke-width': strokeWidth
-        }));
+      function drawStrings(svg, stringSpacing, width) {
+        for (let s = 0; s < CONFIG.numStrings; s++) {
+          const y = CONFIG.margin.top + s * stringSpacing;
+          svg.appendChild(createSVGElement('line', {
+            x1: CONFIG.margin.left,
+            y1: y,
+            x2: width - CONFIG.margin.right,
+            y2: y,
+            class: 'string',
+            'stroke-width': 1 + (s * 0.4)
+          }));
+        }
       }
 
-      for (let i = 0; i < strings.length; i++) {
-        const openNote = strings[i];
-        const openIdx = getNoteIndex(openNote);
+      function drawMarkers(svg, fretSpacing, height) {
+        const centerY = height / 2;
+        CONFIG.fretMarkers.forEach(marker => {
+          if (marker < state.startFret || marker > state.startFret + state.visibleFrets) return;
+          const localFret = marker - state.startFret;
+          const cx = CONFIG.margin.left + localFret * fretSpacing - fretSpacing / 2;
 
-        for (let fret = 0; fret <= numFrets; fret++) {
-          const noteIdx = (openIdx + fret) % 12;
-          const noteDisplay = getNoteName(noteIdx, notation);
+          const attrs = { cx, r: 6, class: 'fret-dot' };
+          if (marker === 12) {
+            const offset = 25;
+            svg.appendChild(createSVGElement('circle', { ...attrs, cy: centerY - offset }));
+            svg.appendChild(createSVGElement('circle', { ...attrs, cy: centerY + offset }));
+          } else {
+            svg.appendChild(createSVGElement('circle', { ...attrs, cy: centerY }));
+          }
+        });
+      }
 
-          if (scaleNotes.includes(noteDisplay)) {
-            let cx = fret === 0 
-              ? margin.left - fretSpacing / 2 
-              : margin.left + fret * fretSpacing - fretSpacing / 2;
-            const cy = margin.top + i * stringSpacing;
-            const r = 12;
+      function drawNotes(svg, fretSpacing, stringSpacing, scaleData, showDegrees) {
+        const notation = scaleData.notation || 'sharp';
+        for (let s = 0; s < CONFIG.numStrings; s++) {
+          const stringRoot = CONFIG.stringTuning[s];
+          const stringY = CONFIG.margin.top + s * stringSpacing;
 
-            const isRoot = getNoteIndex(noteDisplay) === getNoteIndex(root);
-            
-            const circle = createSVGElement("circle", {
-              cx: cx, cy: cy, r: r,
-              class: isRoot ? "root-circle" : "note-circle",
-              'data-note': noteDisplay,
-              'data-string': strings[i],
-              'data-fret': fret
+          for (let f = state.startFret; f <= state.startFret + state.visibleFrets; f++) {
+            const noteIndex = (stringRoot + f) % 12;
+            const noteName = getNoteName(noteIndex, notation);
+            if (!scaleData.notes.includes(noteName)) continue;
+
+            const localFret = f - state.startFret;
+            const cx = f === 0
+              ? CONFIG.margin.left - fretSpacing / 2
+              : CONFIG.margin.left + localFret * fretSpacing - fretSpacing / 2;
+
+            const isRoot = getNoteIndex(noteName) === getNoteIndex(scaleData.root);
+
+            const circle = createSVGElement('circle', {
+              cx,
+              cy: stringY,
+              r: 12,
+              class: isRoot ? 'root-circle' : 'note-circle'
             });
-            
-            const octave = (i < 2) ? 2 : 1;
-            circle.addEventListener("click", () => {
+
+            const octave = s < 2 ? 2 : 1;
+            circle.addEventListener('click', () => {
               initAudioContext();
-              playNote(noteDisplay, 0.5, 0, octave);
+              playNote(noteName, 0.5, 0, octave);
             });
 
-            svg.appendChild(circle);
-            
-            const scaleNoteIdx = scaleNotes.indexOf(noteDisplay);
-            const labelText = showDegrees && scaleNoteIdx !== -1
-              ? (scaleNoteIdx === 0 ? 'R' : degrees[scaleNoteIdx])
-              : noteDisplay;
+            const noteIdx = scaleData.notes.indexOf(noteName);
+            const labelText = showDegrees && noteIdx !== -1
+              ? (noteIdx === 0 ? 'R' : scaleData.degrees[noteIdx])
+              : noteName;
 
-            const text = createSVGElement("text", {
-              x: cx, y: cy + 4,
-              'text-anchor': "middle",
-              'font-size': "11",
-              'font-weight': "bold",
-              class: "note-label"
+            const text = createSVGElement('text', {
+              x: cx,
+              y: stringY + 4,
+              'text-anchor': 'middle',
+              'font-size': '11',
+              'font-weight': 'bold',
+              class: 'note-label'
             });
             text.textContent = labelText;
+
+            svg.appendChild(circle);
             svg.appendChild(text);
           }
         }
       }
-    }
+
+      function highlightVoicing(voicingString) {
+        clearHighlights();
+        const svg = document.querySelector('#fretboard svg');
+        if (!svg || !voicingString) return;
+
+        const frets = voicingString.trim().split(/\s+/);
+        if (frets.length !== CONFIG.numStrings) {
+          console.error('Invalid voicing string');
+          return;
+        }
+
+        const { width, height } = state.lastDimensions;
+        const drawingWidth = width - CONFIG.margin.left - CONFIG.margin.right;
+        const fretSpacing = drawingWidth / (state.visibleFrets + 0.5);
+        const stringSpacing = (height - CONFIG.margin.top - CONFIG.margin.bottom) / (CONFIG.numStrings - 1);
+        const notesToPlay = [];
+
+        frets.forEach((fretChar, stringIndex) => {
+          if (fretChar === 'x' || fretChar === 'X') return;
+          const fretNum = parseInt(fretChar, 10);
+          if (Number.isNaN(fretNum)) return;
+          if (fretNum < state.startFret || fretNum > state.startFret + state.visibleFrets) return;
+
+          const localFret = fretNum - state.startFret;
+          const cx = fretNum === 0
+            ? CONFIG.margin.left - fretSpacing / 2
+            : CONFIG.margin.left + localFret * fretSpacing - fretSpacing / 2;
+          const cy = CONFIG.margin.top + stringIndex * stringSpacing;
+
+          svg.appendChild(createSVGElement('circle', {
+            cx,
+            cy,
+            r: 13,
+            class: 'voicing-highlight'
+          }));
+
+          const noteIndex = (CONFIG.stringTuning[stringIndex] + fretNum) % 12;
+          notesToPlay.push(getNoteName(noteIndex, 'sharp'));
+        });
+
+        if (notesToPlay.length > 0) {
+          playChord(notesToPlay);
+        }
+      }
+
+      function clearHighlights() {
+        document.querySelectorAll('.voicing-highlight').forEach(el => el.remove());
+      }
+
+      return { render, highlightVoicing, clearHighlights };
+    })();
 
     // ============================================================================
     // UI RENDERING
@@ -2090,7 +2159,16 @@ code {
         `<strong class="text-lg">${root} ${scaleName}</strong> - Notes: <span class="font-bold text-indigo-900 text-lg">${scaleData.scaleNotes.join(" – ")}</span>`;
       
       renderScaleAnalysis(scaleName, root, scaleDB[scaleName]);
-      drawFretboard(scaleData.scaleNotes, root, scaleData.degrees, scaleName);
+
+      const rendererData = {
+        root,
+        name: scaleName,
+        notes: scaleData.scaleNotes,
+        degrees: scaleData.degrees,
+        notation: document.getElementById("notationSelect").value
+      };
+      const showDegrees = document.getElementById("degreeToggle").checked;
+      FretboardRenderer.render(rendererData, showDegrees);
       renderCompatibleChords(scaleData.compatibleChords, root);
       
       updateStats();
@@ -2147,16 +2225,23 @@ code {
 
       // Update scale choices
       function updateScaleChoices() {
+        const currentSelection = scaleSelect.value;
         scaleSelect.innerHTML = "";
         const selectedFamily = familySelect.value;
         const scales = getScalesByFamily(selectedFamily);
-        
+
         scales.forEach(scaleName => {
           const opt = document.createElement("option");
           opt.value = scaleName;
           opt.textContent = scaleName;
           scaleSelect.appendChild(opt);
         });
+
+        if (currentSelection && scales.includes(currentSelection)) {
+          scaleSelect.value = currentSelection;
+        } else if (scales.length > 0) {
+          scaleSelect.value = scales[0];
+        }
 
         if (rootSelect.value) {
           updateScale();
@@ -2176,7 +2261,7 @@ code {
       document.getElementById("degreeToggle").addEventListener("change", updateScale);
       
       document.getElementById("showScaleBtn").addEventListener("click", updateScale);
-      document.getElementById("clearHighlightsBtn").addEventListener("click", clearVoicingHighlights);
+      document.getElementById("clearHighlightsBtn").addEventListener("click", FretboardRenderer.clearHighlights);
 
       document.getElementById("playScaleBtn").addEventListener("click", () => {
         const scaleName = scaleSelect.value;
@@ -2257,7 +2342,7 @@ code {
     });
 
     // Make functions globally accessible for onclick attributes
-    window.highlightVoicing = highlightVoicing;
+    window.highlightVoicing = FretboardRenderer.highlightVoicing;
     window.checkAnswer = checkAnswer;
   </script>
 
