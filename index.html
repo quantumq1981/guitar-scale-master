@@ -1106,7 +1106,7 @@ code {
         width: 1000,
         height: 180,
         margin: { left: 40, top: 20, right: 20, bottom: 20 },
-        stringTuning: [4, 11, 7, 2, 9, 4], // E B G D A E (high to low)
+        stringTuning: [4, 9, 2, 7, 11, 4], // E A D G B E (low to high)
         fretMarkers: [3, 5, 7, 9, 12, 15],
         mobileMaxFrets: 8
       };
@@ -1203,16 +1203,19 @@ code {
         }
       }
 
+      const getStringY = (stringIndex, stringSpacing) =>
+        CONFIG.margin.top + (CONFIG.numStrings - 1 - stringIndex) * stringSpacing;
+
       function drawStrings(svg, stringSpacing, width) {
         for (let s = 0; s < CONFIG.numStrings; s++) {
-          const y = CONFIG.margin.top + s * stringSpacing;
+          const y = getStringY(s, stringSpacing);
           svg.appendChild(createSVGElement('line', {
             x1: CONFIG.margin.left,
             y1: y,
             x2: width - CONFIG.margin.right,
             y2: y,
             class: 'string',
-            'stroke-width': 1 + (s * 0.4)
+            'stroke-width': 1 + ((CONFIG.numStrings - 1 - s) * 0.4)
           }));
         }
       }
@@ -1239,7 +1242,7 @@ code {
         const notation = scaleData.notation || 'sharp';
         for (let s = 0; s < CONFIG.numStrings; s++) {
           const stringRoot = CONFIG.stringTuning[s];
-          const stringY = CONFIG.margin.top + s * stringSpacing;
+          const stringY = getStringY(s, stringSpacing);
 
           for (let f = state.startFret; f <= state.startFret + state.visibleFrets; f++) {
             const noteIndex = (stringRoot + f) % 12;
@@ -1260,7 +1263,7 @@ code {
               class: isRoot ? 'root-circle' : 'note-circle'
             });
 
-            const octave = s < 2 ? 2 : 1;
+            const octave = s >= CONFIG.numStrings - 2 ? 2 : 1;
             circle.addEventListener('click', () => {
               initAudioContext();
               playNote(noteName, 0.5, 0, octave);
@@ -1314,7 +1317,7 @@ code {
           const cx = fretNum === 0
             ? CONFIG.margin.left - fretSpacing / 2
             : CONFIG.margin.left + localFret * fretSpacing - fretSpacing / 2;
-          const cy = CONFIG.margin.top + stringIndex * stringSpacing;
+          const cy = getStringY(stringIndex, stringSpacing);
 
           svg.appendChild(createSVGElement('circle', {
             cx,
